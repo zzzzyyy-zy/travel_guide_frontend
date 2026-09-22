@@ -93,14 +93,14 @@ function wxLogin() {
 .lg-hello-txt {
   font-size: 88rpx;
   font-weight: 800;
-  color: #1f2d2a;
+  color: #333333;
   line-height: 1.1;
 }
 .lg-hello-line {
   width: 180rpx;
   height: 10rpx;
   border-radius: 6rpx;
-  background: #4cbfa6;
+  background: #48A999;
   margin-top: 10rpx;
 }
 
@@ -108,7 +108,7 @@ function wxLogin() {
 .lg-btn-wx {
   height: 96rpx;
   border-radius: 48rpx;
-  background: #4cbfa6;
+  background: #48A999;
   color: #ffffff;
   font-size: 34rpx;
   font-weight: 600;
@@ -125,6 +125,6 @@ function wxLogin() {
   margin-top: 28rpx;
   text-align: center;
   font-size: 24rpx;
-  color: #9aa8a4;
+  color: #868E96;
 }
 </style>

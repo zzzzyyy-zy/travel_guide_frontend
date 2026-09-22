@@ -81,19 +81,19 @@ function goHome() {
 </script>
 
 <style>
-.trip { padding: 24rpx 0; border-bottom: 1rpx solid #f0efe9; }
+.trip { padding: 24rpx 0; border-bottom: 1rpx solid #E8E8E8; }
 .trip-head { display: flex; justify-content: space-between; align-items: center; }
 .trip-title { font-size: 30rpx; font-weight: 600; color: #333; }
 .trip-status { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 20rpx; }
-.trip-status.completed { background: #e6f4ea; color: #2e7d32; }
-.trip-status.running, .trip-status.queued { background: #e8f1fa; color: #185FA5; }
+.trip-status.completed { background: #E4F1EF; color: #2E6E63; }
+.trip-status.running, .trip-status.queued { background: #E4F1EF; color: #48A999; }
 .trip-status.failed { background: #fdecea; color: #d9534f; }
-.trip-status.canceled { background: #f0efe9; color: #888780; }
+.trip-status.canceled { background: #E8E8E8; color: #868E96; }
 .trip-sub { font-size: 24rpx; color: #999; margin-top: 8rpx; }
 .trip-actions { margin-top: 12rpx; text-align: right; }
 .action { font-size: 24rpx; color: #d9534f; padding: 8rpx 0 8rpx 32rpx; }
 .empty { text-align: center; padding: 80rpx 40rpx; }
 .big-icon { font-size: 88rpx; margin-bottom: 16rpx; }
-.btn.ghost { background: #fff; color: #185FA5; border: 1rpx solid #185FA5; }
+.btn.ghost { background: #fff; color: #48A999; border: 1rpx solid #48A999; }
 .note.center { text-align: center; }
 </style>

@@ -358,12 +358,12 @@ function goItinerary(tripId) {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #e9f5f0;
+  background: #E4F1EF;
 }
 /* 小程序 scroll-view 对 flex 支持不完整：必须 height:0 + flex:1 才能被 flex 撑开并获得滚动 */
 .fm-scroll { flex: 1; height: 0; }
 .fm-wrap {
-  background: #e9f5f0;
+  background: #E4F1EF;
   padding: 24rpx 24rpx 40rpx;
   box-sizing: border-box;
 }
@@ -378,80 +378,80 @@ function goItinerary(tripId) {
 .fm-sec.gap { margin-top: 32rpx; }
 .fm-sec-ico {
   width: 48rpx; height: 48rpx; border-radius: 50%;
-  background: #e2f3ed; font-size: 26rpx;
+  background: #E4F1EF; font-size: 26rpx;
   display: flex; align-items: center; justify-content: center;
   margin-right: 14rpx;
 }
-.fm-sec-title { font-size: 32rpx; font-weight: 600; color: #2e3a36; }
+.fm-sec-title { font-size: 32rpx; font-weight: 600; color: #333333; }
 .fm-req { color: #e24b4a; font-size: 30rpx; margin-left: 8rpx; }
 /* 信息行：左标签 右值 */
 .fm-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 26rpx 0; border-bottom: 1rpx solid #f0f4f2;
+  padding: 26rpx 0; border-bottom: 1rpx solid #E8E8E8;
 }
 .fm-row.last { border-bottom: none; }
-.fm-row-label { font-size: 28rpx; color: #4a5551; }
+.fm-row-label { font-size: 28rpx; color: #333333; }
 .fm-row-input {
-  flex: 1; text-align: right; font-size: 28rpx; color: #2e3a36; margin-right: 8rpx;
+  flex: 1; text-align: right; font-size: 28rpx; color: #333333; margin-right: 8rpx;
 }
-.fm-row-value { font-size: 28rpx; color: #2e3a36; }
-.fm-row-value.placeholder { color: #b8c6c1; }
-.fm-chev { color: #c2cfc9; font-size: 30rpx; margin-left: 8rpx; }
+.fm-row-value { font-size: 28rpx; color: #333333; }
+.fm-row-value.placeholder { color: #ADB5BD; }
+.fm-chev { color: #ADB5BD; font-size: 30rpx; margin-left: 8rpx; }
 /* 步进器（总人数） */
 .fm-stepper { display: flex; align-items: center; gap: 24rpx; }
 .fm-step-btn {
   width: 52rpx; height: 52rpx; line-height: 48rpx; text-align: center;
-  border: 1rpx solid #dce8e3; border-radius: 50%;
-  font-size: 32rpx; color: #4cbfa6; background: #fff;
+  border: 1rpx solid #E8E8E8; border-radius: 50%;
+  font-size: 32rpx; color: #48A999; background: #fff;
 }
-.fm-step-btn.plus { background: #4cbfa6; color: #fff; border-color: #4cbfa6; }
-.fm-step-num { font-size: 30rpx; color: #2e3a36; min-width: 60rpx; text-align: center; }
+.fm-step-btn.plus { background: #48A999; color: #fff; border-color: #48A999; }
+.fm-step-num { font-size: 30rpx; color: #333333; min-width: 60rpx; text-align: center; }
 /* 预算输入 */
 .fm-budget-input-row {
   display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx;
-  border: 1rpx solid #e3eae7; border-radius: 12rpx;
+  border: 1rpx solid #E8E8E8; border-radius: 12rpx;
   padding: 18rpx 24rpx; background: #fff;
   overflow: hidden; /* 原生 input 超出部分不可见，防止文字透出框外 */
 }
-.fm-budget-yen { font-size: 32rpx; color: #2e8b77; line-height: 1; }
+.fm-budget-yen { font-size: 32rpx; color: #2E6E63; line-height: 1; }
 /* 小程序原生 input 有默认高度，必须显式限高，否则文字会溢出容器 */
 .fm-budget-input {
-  flex: 1; font-size: 28rpx; color: #2e3a36;
+  flex: 1; font-size: 28rpx; color: #333333;
   height: 44rpx; min-height: 44rpx; line-height: 44rpx;
 }
-.fm-budget-unit { font-size: 26rpx; color: #6b7a75; line-height: 1; }
-.fm-budget-tip { font-size: 22rpx; color: #b0beb9; margin-top: 14rpx; }
+.fm-budget-unit { font-size: 26rpx; color: #868E96; line-height: 1; }
+.fm-budget-tip { font-size: 22rpx; color: #ADB5BD; margin-top: 14rpx; }
 /* 标签多选 */
-.fm-sub { font-size: 28rpx; color: #4a5551; margin: 24rpx 0 16rpx; }
+.fm-sub { font-size: 28rpx; color: #333333; margin: 24rpx 0 16rpx; }
 .fm-tags { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .fm-tag {
   padding: 10rpx 28rpx; border-radius: 10rpx; font-size: 26rpx;
-  border: 1rpx solid #e3eae7; color: #6b7a75; background: #fff;
+  border: 1rpx solid #E8E8E8; color: #868E96; background: #fff;
 }
 .fm-tag.active {
-  border-color: #4cbfa6; color: #2e8b77; background: #e5f4ef;
+  border-color: #48A999; color: #2E6E63; background: #E4F1EF;
 }
 /* 文本域 */
 .fm-textarea {
   width: 100%; box-sizing: border-box; min-height: 160rpx; margin-top: 16rpx;
-  background: #f6faf8; border-radius: 16rpx; padding: 20rpx 24rpx;
-  font-size: 28rpx; color: #2e3a36;
+  background: #F7F9F9; border-radius: 16rpx; padding: 20rpx 24rpx;
+  font-size: 28rpx; color: #333333;
 }
 .fm-textarea.tall { min-height: 240rpx; background: transparent; padding: 0; }
-.fm-count { text-align: right; font-size: 22rpx; color: #b0beb9; margin-top: 12rpx; }
+.fm-count { text-align: right; font-size: 22rpx; color: #ADB5BD; margin-top: 12rpx; }
 /* 底部操作栏 */
 .fm-footer {
   flex-shrink: 0; /* 固定在滚动区下方，普通流式布局，内容不会滑到它下面 */
   display: flex; gap: 24rpx;
   padding: 20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: #e9f5f0;
+  background: #E4F1EF;
 }
 .fm-footer-btn {
   flex: 1; text-align: center; padding: 22rpx 0;
   border-radius: 44rpx; font-size: 30rpx;
 }
-.fm-footer-btn.reset { background: #fff; color: #4a5551; border: 1rpx solid #dce8e3; }
-.fm-footer-btn.ok { background: #4cbfa6; color: #fff; }
+.fm-footer-btn.reset { background: #fff; color: #333333; border: 1rpx solid #E8E8E8; }
+.fm-footer-btn.ok { background: #48A999; color: #fff; }
 .fm-footer-btn.ok.disabled { opacity: 0.6; }
 
 /* ---------- 生成中面板（流式进度 + AI 撰写逐字上屏） ---------- */
@@ -465,15 +465,15 @@ function goItinerary(tripId) {
   width: 86%; background: #fff; border-radius: 24rpx;
   padding: 40rpx 36rpx 28rpx; box-sizing: border-box;
 }
-.gen-title { font-size: 34rpx; font-weight: 700; color: #1f2d2a; text-align: center; }
+.gen-title { font-size: 34rpx; font-weight: 700; color: #333333; text-align: center; }
 .gen-step {
   margin-top: 20rpx; display: flex; align-items: center;
   justify-content: center; gap: 10rpx;
-  font-size: 26rpx; color: #4cbfa6;
+  font-size: 26rpx; color: #48A999;
 }
 .gen-dot {
   width: 12rpx; height: 12rpx; border-radius: 50%;
-  background: #4cbfa6; animation: genPulse 1s ease-in-out infinite;
+  background: #48A999; animation: genPulse 1s ease-in-out infinite;
 }
 @keyframes genPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 .gen-stream {
@@ -487,9 +487,9 @@ function goItinerary(tripId) {
 }
 /* 闪烁光标：模拟逐字输入的效果 */
 .gen-cursor {
-  font-size: 22rpx; color: #4cbfa6;
+  font-size: 22rpx; color: #48A999;
   animation: genBlink 0.8s step-end infinite;
 }
 @keyframes genBlink { 50% { opacity: 0; } }
-.gen-hint { margin-top: 18rpx; text-align: center; font-size: 24rpx; color: #9aa8a4; }
+.gen-hint { margin-top: 18rpx; text-align: center; font-size: 24rpx; color: #868E96; }
 </style>

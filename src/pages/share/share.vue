@@ -91,21 +91,21 @@ useLoad(options => {
 .sh-page { min-height: 100vh; background: #f7f9f9; padding: 24rpx; box-sizing: border-box; }
 .sh-center { text-align: center; padding-top: 240rpx; }
 .sh-icon { font-size: 80rpx; }
-.sh-title { font-size: 34rpx; font-weight: 700; color: #1f2d2a; margin-top: 24rpx; }
-.sh-note { font-size: 26rpx; color: #9ab3ab; margin-top: 16rpx; }
+.sh-title { font-size: 34rpx; font-weight: 700; color: #333333; margin-top: 24rpx; }
+.sh-note { font-size: 26rpx; color: #868E96; margin-top: 16rpx; }
 .sh-card { background: #fff; border-radius: 20rpx; padding: 32rpx; margin-bottom: 24rpx; }
 .sh-badge {
-  display: inline-block; font-size: 22rpx; color: #2e8b77;
-  background: #e8f6f2; border-radius: 999rpx; padding: 6rpx 20rpx; margin-bottom: 16rpx;
+  display: inline-block; font-size: 22rpx; color: #2E6E63;
+  background: #E4F1EF; border-radius: 999rpx; padding: 6rpx 20rpx; margin-bottom: 16rpx;
 }
-.sh-day { font-size: 30rpx; font-weight: 700; color: #1f2d2a; margin-bottom: 20rpx; }
-.sh-sub { font-size: 26rpx; color: #6b7f79; margin-top: 12rpx; line-height: 1.6; }
-.sh-budget { font-size: 30rpx; font-weight: 700; color: #2e8b77; margin-top: 20rpx; }
-.sh-item { padding: 16rpx 0; border-bottom: 1rpx solid #f0efe9; }
+.sh-day { font-size: 30rpx; font-weight: 700; color: #333333; margin-bottom: 20rpx; }
+.sh-sub { font-size: 26rpx; color: #868E96; margin-top: 12rpx; line-height: 1.6; }
+.sh-budget { font-size: 30rpx; font-weight: 700; color: #2E6E63; margin-top: 20rpx; }
+.sh-item { padding: 16rpx 0; border-bottom: 1rpx solid #E8E8E8; }
 .sh-item:last-child { border-bottom: none; }
 .sh-item-head { display: flex; gap: 16rpx; }
-.sh-time { font-size: 24rpx; color: #9ab3ab; flex-shrink: 0; }
-.sh-name { font-size: 28rpx; color: #1f2d2a; font-weight: 600; }
-.sh-reason { display: block; font-size: 24rpx; color: #6b7f79; margin-top: 8rpx; line-height: 1.5; }
-.sh-foot { text-align: center; font-size: 22rpx; color: #b0beb9; padding: 24rpx 0 48rpx; }
+.sh-time { font-size: 24rpx; color: #868E96; flex-shrink: 0; }
+.sh-name { font-size: 28rpx; color: #333333; font-weight: 600; }
+.sh-reason { display: block; font-size: 24rpx; color: #868E96; margin-top: 8rpx; line-height: 1.5; }
+.sh-foot { text-align: center; font-size: 22rpx; color: #ADB5BD; padding: 24rpx 0 48rpx; }
 </style>

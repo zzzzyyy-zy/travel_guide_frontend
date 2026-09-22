@@ -77,7 +77,7 @@ function goCreate() {
 <style>
 .wrap {
   min-height: 100vh;
-  background: #e9f5f0;
+  background: #E4F1EF;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -105,12 +105,12 @@ function goCreate() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #4cbfa6;
+  background: #48A999;
 }
 .hero-avatar-char { color: #ffffff; font-size: 36rpx; font-weight: 600; }
-.hero-nick { font-size: 30rpx; font-weight: 600; color: #2e6e5e; }
-.hero-title { font-size: 52rpx; font-weight: 700; color: #2e6e5e; }
-.hero-sub { margin-top: 16rpx; font-size: 28rpx; color: #6ba292; }
+.hero-nick { font-size: 30rpx; font-weight: 600; color: #2E6E63; }
+.hero-title { font-size: 52rpx; font-weight: 700; color: #2E6E63; }
+.hero-sub { margin-top: 16rpx; font-size: 28rpx; color: #6FA39E; }
 .placeholder {
   margin-top: 60rpx;
   width: 100%;
@@ -121,7 +121,7 @@ function goCreate() {
   align-items: center;
   justify-content: center;
 }
-.placeholder-text { font-size: 26rpx; color: #c2cfc9; }
+.placeholder-text { font-size: 26rpx; color: #ADB5BD; }
 /* 悬浮 + 号按钮 */
 .fab {
   position: fixed;
@@ -129,7 +129,7 @@ function goCreate() {
   width: 120rpx;
   height: 120rpx;
   border-radius: 50%;
-  background: #4cbfa6;
+  background: #48A999;
   box-shadow: 0 8rpx 24rpx rgba(76, 191, 166, 0.45);
   display: flex;
   align-items: center;
@@ -143,6 +143,6 @@ function goCreate() {
   right: 0;
   text-align: center;
   font-size: 24rpx;
-  color: #6ba292;
+  color: #6FA39E;
 }
 </style>
