@@ -167,6 +167,11 @@ const emptyForm = () => ({
   extraRequirements: ''
 })
 const form = ref(emptyForm())
+// 首页「热门旅游城市」入口：?city=北京 直接预填目的地（getCurrentInstance 取路由参数）
+{
+  const prefill = Taro.getCurrentInstance().router.params.city
+  if (prefill) form.value.destinationCity = decodeURIComponent(prefill)
+}
 const budgetInput = ref('')
 const submitting = ref(false)
 

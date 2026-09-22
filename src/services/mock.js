@@ -180,11 +180,17 @@ function mockRequest(path, method, data) {
   }
 
   // 历史列表：GET /api/trip/list（简单数组）
+  // 首页「最近行程」需要出发日期/人数算倒计时——真后端契约只有 id/title/createdAt，
+  // 这里 mock 附加 startDate/peopleCount，前端对缺省字段做了防御，真后端不会因此出错
   if (path === '/api/trip/list') {
     return delayer(() =>
       Array.from(trips.values())
         .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-        .map(t => ({ id: t.id, title: t.title, createdAt: t.createdAt }))
+        .map(t => ({
+          id: t.id, title: t.title, createdAt: t.createdAt,
+          startDate: (t.request && t.request.startDate) || '',
+          peopleCount: (t.request && t.request.peopleCount) || ''
+        }))
     )
   }
 
