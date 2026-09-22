@@ -4,19 +4,6 @@
          （input 是原生组件层级最高，普通 view 盖不住，只能靠布局隔离） -->
     <scroll-view class="fm-scroll" :scroll-y="true" v-if="!genVisible">
       <view class="fm-wrap">
-    <!-- 一句话输入（创新点：解析后预填表单，后端 /api/parse 待补，mock 先行） -->
-    <view class="fm-card">
-      <view class="fm-sec">
-        <view class="fm-sec-ico">💬</view>
-        <view class="fm-sec-title">一句话，帮你填好表单</view>
-      </view>
-      <textarea class="fm-textarea" v-model="oneLine" maxlength="200"
-        placeholder="例如：周末去杭州两天，不想爬坡，喜欢古建筑和美食" />
-      <view class="fm-parse-btn" @tap="quickFill" :class="{ disabled: parsing }">
-        {{ parsing ? '理解中…' : '帮我填表单' }}
-      </view>
-    </view>
-
     <!-- 卡片1：基本信息 + 人数 -->
     <view class="fm-card">
       <view class="fm-sec">
@@ -28,7 +15,6 @@
       <view class="fm-row">
         <text class="fm-row-label">目的地城市</text>
         <input class="fm-row-input" v-model="form.destinationCity" maxlength="50" placeholder="请输入城市" />
-        <text class="fm-chev">›</text>
       </view>
 
       <view class="fm-row">
@@ -150,6 +136,7 @@
 import { ref, computed } from 'vue'
 import Taro from '@tarojs/taro'
 import api from '../../services/api'
+import CONFIG from '../../utils/config'
 import { isLoggedIn, authState, requireLogin } from '../../utils/auth'
 import AuthMask from '../../components/AuthMask.vue'
 
@@ -181,8 +168,6 @@ const emptyForm = () => ({
 })
 const form = ref(emptyForm())
 const budgetInput = ref('')
-const oneLine = ref('')
-const parsing = ref(false)
 const submitting = ref(false)
 
 // ---------- 生成中面板状态 ----------
@@ -206,38 +191,6 @@ function parseDate(s) {
 }
 function diffDays(a, b) {
   return Math.round((parseDate(b) - parseDate(a)) / 86400000) + 1
-}
-function addDays(s, n) {
-  const d = parseDate(s)
-  d.setDate(d.getDate() + n)
-  const p = x => String(x).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
-
-// ---------- 一句话 → 预填表单 ----------
-function quickFill() {
-  const text = (oneLine.value || '').trim()
-  if (!text || parsing.value) return
-  parsing.value = true
-  api.parse.query(text).then(parsed => {
-    const f = form.value
-    f.destinationCity = parsed.city || f.destinationCity
-    // 解析出的日期若早于今天（如今天是 9/18 说"9月17号"），smartYear 已顺延到明年，直接可用
-    if (parsed.startDate) f.startDate = parsed.startDate
-    if (parsed.days) {
-      // 有开始日期才算得出结束日期
-      if (f.startDate) f.endDate = addDays(f.startDate, parsed.days - 1)
-    }
-    if (parsed.peopleCount >= 1) f.travelers = { adults: parsed.peopleCount, children: 0, seniors: 0 }
-    if (parsed.preferences && parsed.preferences.length) f.preferences = parsed.preferences
-    if (parsed.energyLevel) f.energyLevel = parsed.energyLevel
-    if (parsed.transportation && parsed.transportation.length) f.transportModes = parsed.transportation
-    if (parsed.budget) budgetInput.value = String(parsed.budget)
-    f.extraRequirements = parsed.extraRequirements || ''
-    Taro.showToast({ title: parsed.startDate ? '已填好，请确认信息' : '已填好，请选择日期', icon: 'none' })
-  }).catch(() => {
-    Taro.showToast({ title: '没理解这句话，手动填一下吧', icon: 'none' })
-  }).finally(() => { parsing.value = false })
 }
 
 // ---------- 表单交互 ----------
@@ -323,7 +276,21 @@ function doCreate() {
     if (tokenBuf) { genStream.value += tokenBuf; tokenBuf = '' }
   }
   const finishOk = tripId => { flush(); genVisible.value = false; Taro.setStorageSync('currentTripId', tripId); goItinerary(tripId) }
+  // 注：流式 done 只给 tripId，完整攻略由行程详情页再调 GET /api/trip/{id} 取（联调纪要 9.2）
   const finishFail = e => { flush(); genVisible.value = false; Taro.showToast({ title: e.message || '生成失败，请重试', icon: 'none' }) }
+
+  // 同步生成兜底：普通模式（转圈提示，无逐字）
+  const runSync = () => {
+    genMode.value = 'sync'
+    genStep.value = ''
+    api.trips.generate(payload)
+      .then(res => finishOk(res.tripId))
+      .catch(finishFail)
+      .finally(() => { submitting.value = false })
+  }
+
+  // 流式开关关闭（后端断流问题未修复期间）→ 直接同步，省掉 180 秒白等
+  if (!CONFIG.STREAM || !CONFIG.STREAM.generate) { runSync(); return }
 
   // 首选流式接口：step 刷进度行，token 逐字上屏
   let gotStreamEvent = false
@@ -342,10 +309,14 @@ function doCreate() {
   }).then(res => {
     finishOk(res.tripId)
   }).catch(e => {
-    // 一次事件都没收到 → 流式接口不可用（后端未上线/环境不支持），回落同步生成
-    if (gotStreamEvent) { finishFail(e); return }
-    console.warn('[index] 流式不可用，回落同步生成', e.code)
+    // 三种情况回落同步生成：①一个事件都没收到（接口未上线/环境不支持）
+    // ②流中途被掐（NETWORK_ERROR / STREAM_INCOMPLETE，如后端超时断流）→ 重试拿结果
+    // 其余（后端明确报的业务错误）直接提示，不重复生成
+    const midStreamBreak = e && (e.code === 'NETWORK_ERROR' || e.code === 'STREAM_INCOMPLETE')
+    if (gotStreamEvent && !midStreamBreak) { finishFail(e); return }
+    console.warn('[index] 流式未完成，回落同步生成', e.code)
     genMode.value = 'sync'
+    genStep.value = ''
     api.trips.generate(payload).then(res => finishOk(res.tripId)).catch(finishFail)
   }).finally(() => {
     submitting.value = false
@@ -467,11 +438,6 @@ function goItinerary(tripId) {
   font-size: 28rpx; color: #2e3a36;
 }
 .fm-textarea.tall { min-height: 240rpx; background: transparent; padding: 0; }
-.fm-parse-btn {
-  margin-top: 20rpx; text-align: center; padding: 18rpx 0;
-  border: 1rpx solid #4cbfa6; color: #2e8b77; border-radius: 16rpx; font-size: 28rpx;
-}
-.fm-parse-btn.disabled { opacity: 0.5; }
 .fm-count { text-align: right; font-size: 22rpx; color: #b0beb9; margin-top: 12rpx; }
 /* 底部操作栏 */
 .fm-footer {

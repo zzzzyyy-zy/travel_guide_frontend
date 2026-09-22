@@ -12,9 +12,10 @@ import { saveToken, clearToken, getToken } from '../utils/token'
 import { createSseParser, decodeUtf8 } from '../utils/stream'
 import * as mock from './mock'
 
-// 登录等公开接口不带 Authorization：避免上一轮的过期 token 干扰登录
+// 登录、分享公开访问等接口不带 Authorization：避免过期 token 干扰公开路径
 function isPublicPath(path) {
-  return (path || '').indexOf('/api/auth/') === 0
+  const p = path || ''
+  return p.indexOf('/api/auth/') === 0 || p.indexOf('/api/trip/public/') === 0
 }
 
 function baseHeader(extra, path) {
@@ -91,9 +92,9 @@ function relogin() {
 function moduleOf(path) {
   if (path.indexOf('/api/auth') === 0) return 'auth'
   if (path.indexOf('/api/trip') === 0) return 'trips'
-  if (path.indexOf('/api/parse') === 0) return 'parse'
   if (path.indexOf('/api/poi') === 0) return 'poi'
   if (path.indexOf('/api/guide') === 0) return 'guide'
+  if (path.indexOf('/api/voice') === 0) return 'voice'
   if (path.indexOf('/api/event') === 0) return 'event'
   return ''
 }
@@ -159,10 +160,14 @@ function sseRequest(path, method, data, handlers) {
       method: method || 'POST',
       data: data || {},
       header: baseHeader({ Accept: 'text/event-stream' }, path),
-      timeout: 300000,
+      // 必须 ≥ 后端 SseEmitter 寿命（队友已从 180s 提到 600s），否则前端先超时、 symptoms 相同
+      timeout: 600000,
       enableChunked: true,           // 分块接收，配合 onChunkReceived
       responseType: 'arraybuffer',   // chunk 进字节层解析器（中文防切断）
       success: res => {
+        // 兜底冲刷：协议规定「空行结束」，但连接关闭时末个事件可能只留单个换行，
+        // 不补一个空行就会把 done 事件吞掉、误判成 STREAM_INCOMPLETE
+        try { parser.push(new Uint8Array([0x0a, 0x0a])) } catch (e) {}
         if (finished) return
         // 流结束但没收到 done 事件：可能是鉴权失败等以普通 JSON 返回
         if (res.statusCode !== 200) {
@@ -183,6 +188,9 @@ function sseRequest(path, method, data, handlers) {
       task.onChunkReceived(res => {
         try { parser.push(res.data) } catch (e) { console.warn('[stream] chunk 解析失败', e) }
       })
+      // task 本身是 thenable：流中断/网络错误时它会 reject（如 ERR_INCOMPLETE_CHUNKED_ENCODING），
+      // 不接住会出现「Uncaught (in promise) network error」；真实错误已由 fail 回调统一 reject
+      if (typeof task.catch === 'function') task.catch(() => {})
     } else {
       bad({ code: 'STREAM_UNSUPPORTED', message: '当前环境不支持流式接收' })
     }
@@ -195,11 +203,6 @@ const api = {
     // 登录：wx.login 拿到的 code 换 token（文档 2026-09-20）。code 有效期 5 分钟，须即刻使用
     login: code => request('/api/auth/login', 'POST', { code }),
     relogin
-  },
-
-  // 一句话解析预填表单（文档未含此接口，前端创新点，mock 先行）
-  parse: {
-    query: text => request('/api/parse', 'POST', { text })
   },
 
   // 攻略模块（文档 2026-09-19）
@@ -226,7 +229,16 @@ const api = {
     // 历史列表（简单数组）：[{ id, title, createdAt }]
     list: () => request('/api/trip/list', 'GET'),
     // 删除行程
-    remove: tripId => request(`/api/trip/${tripId}`, 'DELETE')
+    remove: tripId => request(`/api/trip/${tripId}`, 'DELETE'),
+    // ---------- 分享（后端文档 2026-09-20） ----------
+    // 生成攻略小程序码（自动开启分享）→ data: { image: base64 PNG, contentType, token }
+    qrcode: tripId => request(`/api/trip/${tripId}/qrcode`, 'GET'),
+    // 开启/获取分享 token → data: { token }
+    shareOn: tripId => request(`/api/trip/${tripId}/share`, 'POST'),
+    // 撤销分享
+    shareOff: tripId => request(`/api/trip/${tripId}/share`, 'DELETE'),
+    // 凭 token 公开访问（无需登录）→ data: { id, city, days, result }
+    publicDetail: token => request(`/api/trip/public/${token}`, 'GET')
   },
 
   // ---------- 以下接口后端还没出，mock 先行保证页面可开发 ----------
@@ -234,15 +246,24 @@ const api = {
     list: () => request('/api/poi/list', 'GET')
   },
 
+  // ---------- 语音导游（后端文档 2026-09-21 · 7.3） ----------
   guide: {
-    get: (poiId, duration, style) =>
-      request(`/api/guide?poiId=${poiId}&duration=${duration || '2m'}&style=${style || 'standard'}`, 'GET')
+    // 识别所在景点（定位优先、拍照兜底）：body { lat?, lng?, image? } 至少传一个
+    // → data: { attraction, source: 'location' | 'image' }；400 = 两者都识别失败
+    identify: payload => request('/api/guide/identify', 'POST', payload),
+    // 生成讲解词：body { attraction } → data: { attraction, script }
+    narrate: attraction => request('/api/guide/narrate', 'POST', { attraction }),
+    // 语音问答（多轮）：body { sessionId?, question }，首次不传 sessionId
+    // → data: { sessionId, answer }，后续轮次回传拿到的 sessionId
+    chat: (question, sessionId) => request('/api/guide/chat', 'POST', { question, sessionId })
   },
 
-  ask: {
-    // AI 追问（流式 + 溯源）：后端流式协议未约定，固定走 mock
-    // 接口定下后改成 request('/api/ask', 'POST', payload)，并在 config.MOCK 里加 ask 开关
-    question: (payload, handlers) => mock.streamAsk(handlers)
+  // ---------- 语音模块（后端文档 2026-09-21 · 7.4） ----------
+  voice: {
+    // 语音转文字：body { audio: base64, format }（默认 wav，16000Hz 单声道）→ data: { text }；502 = 百度 ASR 失败
+    asr: (audio, format) => request('/api/voice/asr', 'POST', { audio, format: format || 'wav' }),
+    // 文字转语音：body { text } → data: { audio: base64 mp3, contentType }；400 = text 为空 · 502 = 百度 TTS 失败
+    tts: text => request('/api/voice/tts', 'POST', { text })
   },
 
   event: {

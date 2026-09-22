@@ -6,10 +6,18 @@
 //   3. token 存本地，后续请求由 services/api.js 统一带 Authorization: Bearer <token>
 import Taro from '@tarojs/taro'
 import { reactive } from 'vue'
+import CONFIG from './config'
 
 const KEY_TOKEN = 'token'
 const KEY_EXPIRES = 'tokenExpiresAt'
 const KEY_USER = 'user'
+
+// mock 模式留下的假 token（mock_token_ 前缀）在后端必然判「未登录」。
+// 已切到真实登录（MOCK.auth=false）时自动清掉，否则会出现：
+// 本地校验假 token 仍「有效」→ 跳过登录页 → 所有请求带假 token → 后端 401 死局
+function isStaleMockToken(t) {
+  return !!t && t.indexOf('mock_token_') === 0 && !(CONFIG.MOCK && CONFIG.MOCK.auth)
+}
 
 // 后端没有返回 expiresIn（也没约定 TTL），所以本地按 2 小时记，提前 5 分钟算过期
 // 猜短了只会多一次无感的静默重登；猜长了由 401 自动恢复兜住 —— 真正的权威是后端的 401
@@ -24,9 +32,15 @@ export const sessionState = reactive({
 })
 
 export function syncSession() {
-  const token = Taro.getStorageSync(KEY_TOKEN) || ''
+  let token = Taro.getStorageSync(KEY_TOKEN) || ''
+  if (isStaleMockToken(token)) {
+    Taro.removeStorageSync(KEY_TOKEN)
+    Taro.removeStorageSync(KEY_EXPIRES)
+    Taro.removeStorageSync(KEY_USER)
+    token = ''
+  }
   sessionState.token = token
-  sessionState.user = Taro.getStorageSync(KEY_USER) || null
+  sessionState.user = token ? (Taro.getStorageSync(KEY_USER) || null) : null
   sessionState.loggedIn = !!token
   return sessionState
 }

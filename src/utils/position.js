@@ -31,7 +31,8 @@ function demoPosition() {
 function realPosition() {
   return new Promise((resolve) => {
     Taro.getFuzzyLocation({
-      type: 'wgs84',
+      // 全程 GCJ-02（联调纪要 9.5）：微信定位、地图组件、后端腾讯地图 API 统一坐标系，不做任何转换
+      type: 'gcj02',
       success: resolve,
       fail: err => {
         console.warn('[position] 模糊定位失败，回退 demo 模式', err)
