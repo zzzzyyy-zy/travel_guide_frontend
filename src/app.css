@@ -210,3 +210,57 @@ page {
 }
 .mic.rec { background: #d9452c; color: #fff; }
 .grow { flex: 1; margin-bottom: 0; }
+
+/* 追问页：聊天式输入条（替代原大 textarea） */
+.chat-input {
+  flex: 1;
+  height: 72rpx;
+  padding: 0 24rpx;
+  background: #F7F9F9;
+  border: 1rpx solid #E8E8E8;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+}
+.send {
+  width: 120rpx;
+  text-align: center;
+  padding: 18rpx 0;
+  border-radius: 12rpx;
+  background: #48A999;
+  color: #fff;
+  font-size: 28rpx;
+}
+.send.disabled { opacity: 0.5; }
+
+/* 追问页：上（标题）- 中（对话流）- 下（输入条）三段布局 */
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 24rpx;
+  background: #F7F9F9;
+}
+.chat-head {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  margin-bottom: 16rpx;
+}
+.chat-body {
+  flex: 1;
+  min-height: 0;            /* flex 子项允许收缩，滚动才生效 */
+
+}
+.chat-bar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 0 8rpx;
+}
+.chat-foot {
+  text-align: center;
+  font-size: 22rpx;
+  color: #ADB5BD;
+  padding: 4rpx 0 12rpx;
+}

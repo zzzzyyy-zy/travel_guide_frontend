@@ -1,33 +1,36 @@
 <template>
-  <view class="wrap">
-    <view class="card">
+  <view class="chat-page">
+    <!-- 顶部：标题 -->
+    <view class="chat-head">
       <view class="title">就着「{{ attraction || '当前景点' }}」随便问</view>
-      <view class="sub">多轮语音问答，服务端按 sessionId 记住上下文</view>
+    </view>
 
-      <!-- 历史对话 -->
+    <!-- 中部：对话流（可滚动，自动滚到最新一条） -->
+    <scroll-view class="chat-body" :scroll-y="true" :scroll-into-view="scrollAnchor" scroll-with-animation>
       <view class="msg" v-for="(m, i) in messages" :key="i" :class="m.role">
         <text class="msg-text">{{ m.text }}</text>
         <view v-if="m.role === 'a'" class="msg-tts" @tap="speak(m.text)">🔊 听</view>
       </view>
-
       <view class="output" v-if="loading">思考中…</view>
+      <!-- 滚动锚点：新消息时滚到这里 -->
+      <view id="chat-bottom"></view>
+    </scroll-view>
 
-      <textarea class="input" v-model="question" maxlength="200" placeholder="输入问题，或点话筒说" />
-      <view class="row">
-        <view class="mic" :class="{ rec: recording }" @tap="toggleMic">{{ recording ? '⏹ 停止' : '🎤 说' }}</view>
-        <view class="btn grow" @tap="ask" :class="{ disabled: loading }">{{ loading ? '思考中…' : '问一句' }}</view>
-      </view>
+    <!-- 底部：输入条 -->
+    <view class="chat-bar">
+      <input class="chat-input" v-model="question" maxlength="200"
+        placeholder="输入问题，或点话筒说" :disabled="loading"
+        confirm-type="send" @confirm="ask" />
+      <view class="mic" :class="{ rec: recording }" @tap="toggleMic">{{ recording ? '⏹' : '语音' }}</view>
+      <view class="send" @tap="ask" :class="{ disabled: loading || !(question || '').trim() }">发送</view>
     </view>
-
-    <view class="card" v-if="messages.length">
-      <view class="note">回答由 AI 生成，仅供参考</view>
-    </view>
-    <AuthMask />
+    <view class="chat-foot">回答由 AI 生成，仅供参考</view>
   </view>
+  <AuthMask />
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import Taro, { useLoad, useUnload } from '@tarojs/taro'
 import api from '../../services/api'
 import { requireLogin } from '../../utils/auth'
@@ -40,7 +43,14 @@ const messages = ref([])    // [{ role: 'q' | 'a', text }]
 const sessionId = ref('')   // 首轮为空，服务端返回后回传实现多轮
 const loading = ref(false)
 const recording = ref(false)
+const scrollAnchor = ref('')  // scroll-into-view 锚点：新消息时指向底部
 let audio = null
+
+// 消息/加载态变化时把对话流滚到最底部
+watch(() => [messages.value.length, loading.value], () => {
+  scrollAnchor.value = ''
+  nextTick(() => { scrollAnchor.value = 'chat-bottom' })
+})
 
 useLoad(options => {
   if (options && options.attraction) attraction.value = decodeURIComponent(options.attraction)
@@ -64,8 +74,9 @@ function ask() {
 function startAsk(q) {
   loading.value = true
   messages.value.push({ role: 'q', text: q })
-  // 多轮契约：首轮不传 sessionId，之后原样回传服务端给的
-  api.guide.chat(q, sessionId.value || undefined).then(d => {
+  // 多轮契约：首轮不传 sessionId，之后原样回传服务端给的；
+  // attraction 随每轮带上（identify 识别到的当前景点，后端据此锚定回答）
+  api.guide.chat(q, sessionId.value || undefined, attraction.value || undefined).then(d => {
     loading.value = false
     if (d && d.sessionId) sessionId.value = d.sessionId
     messages.value.push({ role: 'a', text: (d && d.answer) || '（空回答）' })
@@ -101,7 +112,8 @@ function startRecord() {
           api.voice.asr(r.data).then(d => {
             loading.value = false
             const text = (d && d.text) || ''
-            if (text) { question.value = text; startAsk(text) }
+            // 识别结果直接作为提问发出，不回填输入框（避免和气泡重复出现）
+            if (text) startAsk(text)
             else Taro.showToast({ title: '没听清，再试一次', icon: 'none' })
           }).catch(e => {
             loading.value = false

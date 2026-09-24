@@ -114,6 +114,15 @@ function mockRequest(path, method, data) {
       return { attraction: name, script: NARRATIONS[name] || `欢迎来到${name}。这里的相关讲解词正在准备中，你可以先欣赏眼前的景致，稍后再来听更详细的介绍。` }
     })
   }
+  if (path === '/api/user/profile') {
+    return delayer(() => {
+      // 部分更新：传哪个改哪个；mock 的头像用假 OSS 地址模拟转存
+      const out = {}
+      if (data && data.nickname) out.nickname = data.nickname
+      if (data && data.avatar) out.avatarUrl = 'https://mock.oss/avatar/mock-' + Date.now() + '.png'
+      return out
+    })
+  }
   if (path === '/api/guide/chat') {
     return delayer(() => {
       const q = data && data.question
@@ -126,9 +135,10 @@ function mockRequest(path, method, data) {
       }
       chatSessions.get(data.sessionId).push(q)
       const turns = chatSessions.get(data.sessionId).length
+      const at = (data && data.attraction) || '当前景点'
       const answer = turns === 1
-        ? '西湖最著名的传说是白蛇传——许仙与白娘子在断桥相会、被法海镇压于雷峰塔下的故事，就发生在这片湖山之间。'
-        : `这是第 ${turns} 轮回答。你刚才问的是「${q}」，mock 模式下多轮上下文已记录，真实后端将基于 sessionId 续写。`
+        ? `关于${at}：西湖最著名的传说是白蛇传——许仙与白娘子在断桥相会、被法海镇压于雷峰塔下的故事，就发生在这片湖山之间。`
+        : `这是第 ${turns} 轮回答。你在${at}问的是「${q}」，mock 模式下多轮上下文已记录，真实后端将基于 sessionId + attraction 续写。`
       return { sessionId: data.sessionId, answer }
     })
   }

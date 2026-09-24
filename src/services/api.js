@@ -95,6 +95,7 @@ function moduleOf(path) {
   if (path.indexOf('/api/poi') === 0) return 'poi'
   if (path.indexOf('/api/guide') === 0) return 'guide'
   if (path.indexOf('/api/voice') === 0) return 'voice'
+  if (path.indexOf('/api/user') === 0) return 'user'
   if (path.indexOf('/api/event') === 0) return 'event'
   return ''
 }
@@ -247,23 +248,33 @@ const api = {
   },
 
   // ---------- 语音导游（后端文档 2026-09-21 · 7.3） ----------
+  // AI 生成/百度链路慢，默认 15s 不够，统一放宽超时
   guide: {
     // 识别所在景点（定位优先、拍照兜底）：body { lat?, lng?, image? } 至少传一个
     // → data: { attraction, source: 'location' | 'image' }；400 = 两者都识别失败
-    identify: payload => request('/api/guide/identify', 'POST', payload),
+    identify: payload => request('/api/guide/identify', 'POST', payload, { timeout: 60000 }),
     // 生成讲解词：body { attraction } → data: { attraction, script }
-    narrate: attraction => request('/api/guide/narrate', 'POST', { attraction }),
-    // 语音问答（多轮）：body { sessionId?, question }，首次不传 sessionId
+    narrate: attraction => request('/api/guide/narrate', 'POST', { attraction }, { timeout: 60000 }),
+    // 语音问答（多轮）：body { sessionId?, question, attraction? }
+    // attraction = identify/narrate 拿到的景点名，让后端把回答锚定在当前景点（联调纪要 9.22）
     // → data: { sessionId, answer }，后续轮次回传拿到的 sessionId
-    chat: (question, sessionId) => request('/api/guide/chat', 'POST', { question, sessionId })
+    chat: (question, sessionId, attraction) => request('/api/guide/chat', 'POST',
+      { question, sessionId, attraction: attraction || undefined }, { timeout: 60000 })
   },
 
   // ---------- 语音模块（后端文档 2026-09-21 · 7.4） ----------
   voice: {
     // 语音转文字：body { audio: base64, format }（默认 wav，16000Hz 单声道）→ data: { text }；502 = 百度 ASR 失败
-    asr: (audio, format) => request('/api/voice/asr', 'POST', { audio, format: format || 'wav' }),
+    asr: (audio, format) => request('/api/voice/asr', 'POST', { audio, format: format || 'wav' }, { timeout: 30000 }),
     // 文字转语音：body { text } → data: { audio: base64 mp3, contentType }；400 = text 为空 · 502 = 百度 TTS 失败
-    tts: text => request('/api/voice/tts', 'POST', { text })
+    tts: text => request('/api/voice/tts', 'POST', { text }, { timeout: 30000 })
+  },
+
+  // ---------- 用户资料（后端文档 2026-09-23） ----------
+  user: {
+    // 更新昵称/头像（部分更新，传哪个改哪个）：body { nickname?, avatar?(base64，可带 data URL 前缀) }
+    // → data: { nickname, avatarUrl }；avatarUrl 是后端转存 OSS 后的地址
+    profile: payload => request('/api/user/profile', 'POST', payload, { timeout: 30000 })
   },
 
   event: {

@@ -26,14 +26,19 @@
 
 <script setup>
 import { ref } from 'vue'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import api from '../../services/api'
+
+// 本页开启下拉刷新：配置在同名 history.config.js（definePageConfig 宏在 vue SFC 里不生效，实测）
 
 const items = ref([])
 const loading = ref(false)
 
 // 每次切到本页都刷新（新建/删除后保持最新）
 useDidShow(() => refresh())
+
+// 下拉刷新：复用同一条加载链路，结束时收起下拉动画
+usePullDownRefresh(() => refresh())
 
 function refresh() {
   loading.value = true
@@ -42,7 +47,10 @@ function refresh() {
     items.value = Array.isArray(res) ? res : []
   }).catch(e => {
     Taro.showToast({ title: e.message || '加载失败', icon: 'none' })
-  }).finally(() => { loading.value = false })
+  }).finally(() => {
+    loading.value = false
+    Taro.stopPullDownRefresh()  // 下拉没触发时调用也无副作用
+  })
 }
 
 // 点开行程 → 详情页

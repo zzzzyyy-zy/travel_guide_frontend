@@ -8,7 +8,8 @@ export default {
     'pages/history/history',
     'pages/guide/guide',
     'pages/chat/chat',
-    'pages/share/share'
+    'pages/share/share',
+    'pages/profile/profile'
   ],
   window: {
     navigationBarTitleText: '智慧文旅',
@@ -18,23 +19,26 @@ export default {
     backgroundTextStyle: 'light'
   },
   tabBar: {
-    color: '#888780',
-    selectedColor: '#185FA5',
+    color: '#868E96',
+    selectedColor: '#48A999',
     backgroundColor: '#ffffff',
     borderStyle: 'black',
     list: [
-      { pagePath: 'pages/home/home', text: '首页' },
-      { pagePath: 'pages/history/history', text: '历史' },
-      { pagePath: 'pages/guide/guide', text: '讲解' }
+      { pagePath: 'pages/home/home', text: '首页', iconPath: 'assets/tabbar/home-off.png', selectedIconPath: 'assets/tabbar/home-on.png' },
+      { pagePath: 'pages/history/history', text: '历史', iconPath: 'assets/tabbar/history-off.png', selectedIconPath: 'assets/tabbar/history-on.png' },
+      { pagePath: 'pages/guide/guide', text: '讲解', iconPath: 'assets/tabbar/guide-off.png', selectedIconPath: 'assets/tabbar/guide-on.png' },
+      { pagePath: 'pages/profile/profile', text: '我的', iconPath: 'assets/tabbar/profile-off.png', selectedIconPath: 'assets/tabbar/profile-on.png' }
     ]
   },
-  // 定位权限声明（getFuzzyLocation）暂时移除：
-  // 该字段属于隐私接口声明，后台未开通「获取模糊的地理位置」权限时，
-  // 真机预览/上传会直接报 -80424 [getFuzzyLocation] is not authorized，整包都传不上去。
-  // 当前代码没有任何页面调用定位（position.js 未接），讲解页只有「模拟触发」；
-  // 等在 mp 后台（开发管理→接口设置）申请通过、并在《用户隐私保护指引》声明位置信息后，
-  // 再把下面两段加回来接真实定位：
-  // permission: { 'scope.userFuzzyLocation': { desc: '用于展示你附近的景点' } },
-  // requiredPrivateInfos: ['getFuzzyLocation'],
+  // 定位权限声明（讲解页真实定位 2026-09-22 启用）：
+  // ⚠️ 前提：mp 后台「开发管理→接口设置→获取当前的模糊地理位置」已申请通过，
+  // 且《用户隐私保护指引》已勾选「位置信息」。未开通就加这两段 = 真机预览/上传
+  // 直接报 -80424 [getFuzzyLocation] is not authorized，整包传不上去（前车之鉴）。
+  permission: {
+    'scope.userFuzzyLocation': {
+      desc: '用于识别你所在的景点并自动播放讲解'
+    }
+  },
+  requiredPrivateInfos: ['getFuzzyLocation'],
   style: 'v2'
 }

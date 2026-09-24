@@ -52,21 +52,24 @@
         </view>
       </view>
 
-      <!-- 日子切换：胶囊按钮 -->
-      <view class="day-tabs">
+      <!-- 日子切换：横向滑动胶囊（天数多时可滑，不挤压胶囊） -->
+      <scroll-view class="day-tabs" :scroll-x="true" enhanced :show-scrollbar="false">
         <!-- 文档字段是 days[].day，缺省时兜底下标+1；key 用下标防重复 -->
         <view class="day-pill" v-for="(d, idx) in detail.result.days" :key="idx"
           :class="{ active: activeDay === idx }" @tap="switchDay(idx)">
           第{{ d.day || idx + 1 }}天
         </view>
-      </view>
+      </scroll-view>
 
       <!-- 地图：卡片化圆角，marker = 有坐标的景点，polyline = 按当天顺序连线 -->
-      <view class="map-card">
+      <!-- 后端坐标全缺时（7.2 允许个别缺，也可能全缺）整块隐藏，避免展示一个无意义的默认位置地图 -->
+      <view class="map-card" v-if="markers.length">
         <map class="map" :latitude="mapCenter.latitude" :longitude="mapCenter.longitude"
           :markers="markers" :polyline="polylines" scale="12" :show-location="false" />
       </view>
-      <view class="note warn-note" v-if="dayHasMissingCoord">部分景点缺少坐标，地图仅展示已定位的点位</view>
+      <view class="note warn-note" v-if="dayHasMissingCoord">
+        {{ markers.length ? '部分景点缺少坐标，地图仅展示已定位的点位' : '本日景点暂无坐标数据，地图已隐藏' }}
+      </view>
 
       <!-- 当天标题行：主题 + 天级费用（扫读锚点） -->
       <view class="day-head" v-if="currentDay">
@@ -354,11 +357,14 @@ function goHome() {
 .btn.ghost { background: #fff; color: #48A999; border: 1rpx solid #48A999; }
 .warn-note { color: #F29979; }
 
-/* ---------- 日子胶囊切换 ---------- */
-.day-tabs { display: flex; gap: 20rpx; margin-bottom: 24rpx; }
+/* ---------- 日子胶囊切换（scroll-view 横滑） ---------- */
+/* scroll-view 内不能用 flex（flex 子项会把横向滚动撑死），用 inline-block + nowrap */
+.day-tabs { margin-top: 32rpx; margin-bottom: 24rpx; white-space: nowrap; }
 .day-pill {
-  padding: 12rpx 40rpx; border-radius: 999rpx;
+  display: inline-block;
+  padding: 12rpx 40rpx; margin-right: 16rpx; border-radius: 999rpx;
   font-size: 26rpx; color: #868E96;
+  white-space: nowrap;
   background: #fff; border: 1rpx solid #E8E8E8;
 }
 .day-pill.active {
@@ -369,7 +375,8 @@ function goHome() {
 /* ---------- 行程头卡（渐变 hero：目的地 + 元信息 + 预算） ---------- */
 .hero {
   position: relative;
-  background: linear-gradient(135deg, #48A999 0%, #3A8A7C 78%, #2E6E63 100%);
+  /* 湖绿主题：整卡维持 #48A999 主色域，不再压暗到深绿 */
+  background: linear-gradient(135deg, #56B3A6 0%, #48A999 55%, #3D9184 100%);
   border-radius: 24rpx;
   padding: 36rpx 32rpx;
   color: #fff;
