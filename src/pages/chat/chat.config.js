@@ -1,3 +1,3 @@
 export default {
-  navigationBarTitleText: 'AI 追问'
+  navigationBarTitleText: '文字聊天'
 }

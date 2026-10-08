@@ -29,6 +29,20 @@ export function base64ToTempFile(base64, ext) {
   })
 }
 
+// 本地文件 → base64（不带 data: 前缀）。画面识别用：camera takePhoto 得到的是临时文件路径，
+// 上行帧要求纯 base64 字符串（后端按 base64 解码 JPEG）
+export function fileToBase64(filePath) {
+  return new Promise((resolve, reject) => {
+    if (!filePath) return reject(new Error('文件路径为空'))
+    Taro.getFileSystemManager().readFile({
+      filePath,
+      encoding: 'base64',
+      success: res => resolve(res.data),
+      fail: err => reject(err)
+    })
+  })
+}
+
 // 保存图片到相册（带授权引导：用户拒绝过授权时引导去设置页打开）
 export function saveImageToAlbum(filePath) {
   return Taro.saveImageToPhotosAlbum({ filePath }).catch(err => {

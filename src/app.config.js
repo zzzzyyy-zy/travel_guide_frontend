@@ -9,6 +9,15 @@ export default {
     'pages/guide/guide',
     'pages/chat/chat',
     'pages/share/share',
+    'pages/footprint/footprint',
+    'pages/route/route',
+    'pages/expense/expense',
+    'pages/memo/memo',
+    'pages/packing/packing',
+    'pages/nearby/nearby',
+    'pages/videocall/videocall',
+    'pages/feedback/feedback',
+    'pages/badges/badges',
     'pages/profile/profile'
   ],
   window: {
@@ -19,8 +28,9 @@ export default {
     backgroundTextStyle: 'light'
   },
   tabBar: {
+    custom: true,   // 自定义 tabBar（custom-tab-bar/）：4 tab + 中央凸起「＋」按钮
     color: '#868E96',
-    selectedColor: '#48A999',
+    selectedColor: '#22C55E',
     backgroundColor: '#ffffff',
     borderStyle: 'black',
     list: [
@@ -37,8 +47,12 @@ export default {
   permission: {
     'scope.userFuzzyLocation': {
       desc: '用于识别你所在的景点并自动播放讲解'
+    },
+    'scope.userLocation': {
+      desc: '用于添加景点时在地图上选择位置'
     }
   },
-  requiredPrivateInfos: ['getFuzzyLocation'],
+  // chooseLocation（添加景点地图选点 2026-09-24）必须声明，否则调用直接 fail（toast「未选择位置」）
+  requiredPrivateInfos: ['getFuzzyLocation', 'chooseLocation'],
   style: 'v2'
 }

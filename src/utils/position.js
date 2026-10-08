@@ -38,8 +38,9 @@ function getPosition(force) {
 // real 模式失败的兜底点：固定回「景区主入口」，不轮换。
 // 轮换回放只给 MODE='demo' 演示模式用；真实模式失败若每次换坐标，
 // identify 会一会儿认成这个景点、一会儿认成那个，看起来像「定位乱跳」
+// isFallback=true：让调用方知道这不是真实定位（route/reorder 据此在界面标注「演示坐标」）
 function fallbackPosition() {
-  return Promise.resolve(DEMO_TRACK[0])
+  return Promise.resolve({ ...DEMO_TRACK[0], isFallback: true })
 }
 
 let warned = false
@@ -124,4 +125,16 @@ function setMode(mode) {
   MODE = mode
 }
 
-export { getPosition, setMode }
+// 清掉 5 秒防连点缓存：讲解页下拉刷新时调用，保证下一次定位是全新意图
+function clearCache() {
+  cache = null
+  cacheAt = 0
+}
+
+// 轮换兜底坐标：讲解页下拉刷新时调用，让「真实定位失败后的兜底」从下一个演示点开始——
+// 否则模拟器里 getFuzzyLocation 必失败，兜底永远固定「景区主入口」，刷新后再识别还是同一个景点
+function advanceFallback() {
+  demoIndex++
+}
+
+export { getPosition, setMode, clearCache, advanceFallback }

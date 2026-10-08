@@ -7,3 +7,7 @@ miniprogram_npm/
 package-lock.json
 *.log
 .DS_Store
+
+# 本地构建产物校验脚本（一次性工具，不入库）
+check_*.cjs
+gen-*.cjs

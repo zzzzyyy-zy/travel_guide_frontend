@@ -14,7 +14,11 @@ const config = {
   plugins: [],
   defineConstants: {},
   copy: {
-    patterns: [],
+    patterns: [
+      // 地图 marker 图钉：小图会被 url-loader 内联成 base64，真机 <map> 对 base64 iconPath
+      // 兼容性差 → 用 copy 原样拷进 dist，页面里直接写包内绝对路径（不用 import）
+      { from: 'src/assets/map-pin.png', to: 'dist/assets/map-pin.png' }
+    ],
     options: {}
   },
   framework: 'vue3',
