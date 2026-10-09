@@ -152,6 +152,14 @@ function useMock(path) {
 // ---------- 普通请求：401 自动重登并重试一次；GET 遇网络抖动也自动补一次 ----------
 // 静默重登（401 恢复）与网络重试共用这段恢复逻辑
 function recoverAuth(path, method, data, opts) {
+  // 游客态保护（2026-10-09 微信审核整改）：本地从来没登录过（无 token）时**不做静默重登**。
+  // 否则游客只是打开了首页/历史页，接口回 401 就会触发 Taro.login 换 token —— 用户在完全
+  // 没点过「登录」的情况下被静默注册（微信审核明确反对，且和「游客浏览」的产品口径冲突）。
+  // 只有「曾经登录过、token 过期」才静默续期，续不上再交给页面走手动登录。
+  if (!getToken()) {
+    console.warn('[api] 游客态（本地无 token），不静默重登：', path)
+    throw { code: 'AUTH_REQUIRED', message: '登录后可用' }
+  }
   console.warn('[api] 登录态失效，尝试静默重登后重试')
   clearToken()
   return relogin()

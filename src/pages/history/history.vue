@@ -62,12 +62,13 @@
       </view>
     </view>
 
-    <!-- 搜索/筛选无结果与真空态分开提示 -->
+    <!-- 搜索/筛选无结果与真空态分开提示；游客态（未登录）单独引导登录 -->
     <view class="card empty" v-if="!groups.length && !loading">
       <image class="big-icon" :src="emptyIcon" mode="aspectFit" />
       <view class="title">{{ emptyTitle }}</view>
       <view class="note">{{ emptyNote }}</view>
-      <view class="btn" v-if="!favOnly && !collabOnly && !keyword" @tap="goHome">去规划</view>
+      <view class="btn" v-if="isGuest" @tap="onLogin">微信登录查看</view>
+      <view class="btn" v-else-if="!favOnly && !collabOnly && !keyword" @tap="goHome">去规划</view>
       <view class="btn ghost" v-else-if="favOnly || collabOnly" @tap="clearFilters">看全部行程</view>
       <view class="btn ghost" v-else @tap="keyword = ''">清空搜索</view>
     </view>
@@ -102,6 +103,8 @@
 import { computed, ref } from 'vue'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { useShare } from '../../utils/share'
+// 游客态（2026-10-09 微信审核整改）：未登录也能进本页，只是列表为空 + 引导登录
+import { sessionState, requireLogin } from '../../utils/auth'
 import api from '../../services/api'
 import { cityPhoto } from '../../data/cityImages'
 import { setTab } from '../../utils/tabbar'
@@ -130,6 +133,12 @@ const loading = ref(false)
 const favOnly = ref(false)   // true = 只看收藏
 const collabOnly = ref(false) // true = 只看协作行程（≥2 人：我创建的有人加入 / 别人分享给我的，见 utils/collab.js）
 const keyword = ref('')      // 搜索词（标题/城市，本地过滤）
+
+// 游客态：未登录进本页不弹登录框，列表为空 + 空态引导点登录（2026-10-09 微信审核整改）
+const isGuest = computed(() => !sessionState.loggedIn)
+function onLogin() {
+  requireLogin(() => refresh(), { tip: '登录后可查看你的行程、收藏与协作记录' })
+}
 
 // 加入协作弹层（输入 16 位分享口令）
 const joinVisible = ref(false)
@@ -168,12 +177,14 @@ const groups = computed(() => {
 })
 
 const emptyTitle = computed(() => {
+  if (isGuest.value) return '登录后查看我的行程'
   if (favOnly.value) return '还没有收藏'
   if (collabOnly.value) return '还没有协作行程'
   if (keyword.value.trim()) return '没有匹配的行程'
   return '还没有行程'
 })
 const emptyNote = computed(() => {
+  if (isGuest.value) return '行程、收藏与协作记录都保存在账号里，登录后可随时查看'
   if (favOnly.value) return '在行程卡片点亮星标即可收藏'
   if (collabOnly.value) return '把行程口令分享给朋友，或点右上「加入行程」，有人一起就是协作行程'
   if (keyword.value.trim()) return '换个关键词试试，或清空搜索看全部'
@@ -185,8 +196,7 @@ const emptyIcon = computed(() => {
   if (favOnly.value) return starFillBig
   if (collabOnly.value) return users
   if (keyword.value.trim()) return searchGreen
-  return luggage
-})
+  return luggage})
 
 // 每次切到本页都刷新（新建/删除/收藏后保持最新）；同步自定义 tabBar 选中态
 // 分享：本页内容依赖登录，对方点开只会看到「自己的空历史」→ 转发一律引导到首页
@@ -222,6 +232,11 @@ function refresh() {
       })
     })
   }).catch(e => {
+    // 游客（本地无 token）不算错误：api 层已拦掉静默重登，这里静默显示空态 + 登录引导
+    if (isGuest.value || (e && e.code === 'AUTH_REQUIRED')) {
+      allItems.value = []
+      return
+    }
     Taro.showToast({ title: e.message || '加载失败', icon: 'none' })
   }).finally(() => {
     loading.value = false
@@ -333,9 +348,12 @@ function tripTitle(t) {
 }
 
 // ---------- 加入协作（POST /api/trip/join，凭 16 位分享口令，幂等）----------
+// 加入协作要用功能 → 先登录（游客态点这里弹登录框，可暂不登录）
 function openJoin() {
-  joinToken.value = ''
-  joinVisible.value = true
+  requireLogin(() => {
+    joinToken.value = ''
+    joinVisible.value = true
+  }, { tip: '加入协作行程需要登录（协作记录会关联到你的账号）' })
 }
 
 function closeJoin() {

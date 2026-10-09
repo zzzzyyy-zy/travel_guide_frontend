@@ -28,6 +28,10 @@
         <text class="agree-link" @tap.stop="showAgreement('user')">《用户协议》</text>
         <text class="agree-link" @tap.stop="showAgreement('privacy')">《隐私政策》</text>
       </view>
+
+      <!-- 游客入口（2026-10-09 微信审核整改）：不登录也能浏览首页/热门景点/示例行程，
+           只有用功能（生成攻略、AI 讲解等）时才需要登录 -->
+      <view class="lg-skip" @tap="skipLogin">先随便逛逛</view>
     </view>
 
     <!-- 资料完善态：内联头像昵称（官方能力，无法静默授权）；同样去卡片化 -->
@@ -52,6 +56,8 @@
         <input class="st-name" v-model="nameDraft" type="nickname" placeholder="获取微信昵称" maxlength="20" />
       </view>
       <view class="st-btn main" :class="{ disabled: saving }" @tap="saveAndEnter">{{ saving ? '保存中…' : '保存并进入' }}</view>
+      <!-- 不强制完善资料（2026-10-09 微信审核整改）：可以先去逛，之后再从「我的」补 -->
+      <view class="st-skip" @tap="skipLogin">暂不完善，先去逛逛</view>
     </view>
   </view>
 </template>
@@ -217,9 +223,18 @@ useLoad(() => {
   }
 })
 
+// 跳过登录 / 暂不完善资料（2026-10-09 微信审核整改）：
+// 游客可以正常浏览首页、热门景点、示例行程；只有用功能（生成攻略、AI 讲解、记账、
+// 加入协作…）时才会在对应入口再弹登录。跳过失完善时顺带丢弃「待返回页面」，避免
+// 之后某次登录莫名其妙跳回一个很旧的页面。
+function skipLogin() {
+  console.log('[login] 用户选择跳过，进入游客浏览')
+  takeSetupReturn()
+  Taro.reLaunch({ url: '/pages/home/home' })
+}
+
 // 微信一键登录：wx.login 拿 code 换 token，成功后检查资料
-function wxLogin() {
-  if (submitting.value) return
+function wxLogin() {  if (submitting.value) return
   if (!agreed.value) {
     Taro.showToast({ title: '请先阅读并同意用户协议与隐私政策', icon: 'none' })
     return
@@ -301,6 +316,9 @@ function wxLogin() {
 .agree-txt { color: #94A3B8; }
 .agree-link { color: #16A34A; margin-left: 4rpx; }
 
+/* 游客入口：不登录也能逛（合规必需，弱化视觉但必须显眼可见） */
+.lg-skip { margin-top: 40rpx; text-align: center; font-size: 26rpx; color: #64748B; text-decoration: underline; }
+
 /* 资料完善态：同样去卡片化，输入框只留一条底线 */
 .st-row { display: flex; align-items: center; }
 /* 头像：view 做视觉容器（尺寸完全可控），button 透明覆盖层只负责唤起 chooseAvatar */
@@ -334,4 +352,5 @@ function wxLogin() {
 }
 .st-btn.main { background: #22C55E; color: #ffffff; font-weight: 500; }
 .st-btn.main.disabled { opacity: 0.55; }
+.st-skip { margin-top: 28rpx; text-align: center; font-size: 26rpx; color: #64748B; text-decoration: underline; }
 </style>

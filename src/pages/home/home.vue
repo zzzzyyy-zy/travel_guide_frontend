@@ -84,7 +84,8 @@
       </view>
     </view>
 
-    <!-- 未登录（含从好友分享卡片进来的新用户）：先弹登录界面 -->
+    <!-- 全局授权弹层：游客浏览时不再自动弹（2026-10-09 微信审核整改）；
+         只有点了需要登录的功能（AI 搭子入口、个别入口）才会由 requireLogin 唤起 -->
     <AuthMask />
   </view>
 </template>
@@ -92,8 +93,10 @@
 <script setup>
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useShare } from '../../utils/share'
-import { isLoggedIn, requireLogin, isProfileComplete } from '../../utils/auth'
+// 功能级登录拦截：游客可浏览首页，点「路线规划 / 周边设施」这类要服务端数据的功能才弹登录
+import { requireLogin } from '../../utils/auth'
 import { captureInviter } from '../../utils/invite'
+// AuthMask 仍挂在页面上（游客浏览后，首页内若有入口触发 requireLogin 也能正常弹）
 import AuthMask from '../../components/AuthMask.vue'
 import { ref, computed } from 'vue'
 import api from '../../services/api'
@@ -277,25 +280,11 @@ useDidShow(() => {
     const inst = Taro.getCurrentInstance && Taro.getCurrentInstance()
     if (inst && inst.router) captureInviter({ query: inst.router.params })
   } catch (e) {}
-  // 登录闸门（2026-10-06）：首页是「好友分享」的默认落地页（转发 path 就是
-  // /pages/home/home?inviterId=xxx），未注册用户点分享会直接落到这里 → 先弹登录界面。
-  // 用「弹层 + 必须由用户点按钮」而不是 reLaunch 跳登录页，原因有两条：
-  //   ① 弹层在页面内，不依赖跳转时序 —— 冷启动（从分享卡片直接进来）时 reLaunch 偶发不生效；
-  //   ② 登录必须用户主动点：静默登录会把新用户「无感注册」掉，用户压根看不到登录界面，
-  //      首登也就错过把 inviterId 提交给后端的机会。
-  // 弹层期间隐藏自定义 tabBar（它挂在页面 root 外，跨容器压不住，见 utils/tabbar.js）。
-  // 登录 + 完善资料闸门：未登录、或登录过但资料不全（缺昵称/头像）都先弹登录界面，
-  // 用户点完登录再进「完善微信资料」卡（顺序：先登录 → 再完善，2026-10-08 用户明确要求）。
-  // 判「资料不全」也弹，是因为只判 token 会让上一步没过完的新用户直接进首页。
-  if (!isLoggedIn() || !isProfileComplete()) {
-    console.log('[home] 未登录或资料不全，弹登录界面')
-    setTabBarHidden(true)
-    requireLogin(enterHome, {
-      tip: '首次使用需登录并完善头像昵称（头像昵称仅用于行程协作展示）',
-      skippable: false
-    })
-    return
-  }
+  // 游客浏览（2026-10-09 用户要求 + 微信审核整改）：
+  // 微信审核明确「一进入就要求授权手机号/头像/昵称」不合规 —— 首页不再做任何登录拦截，
+  // 未登录用户直接浏览（热门景点/示例行程都能看），只有「用功能」（生成攻略、AI 讲解、
+  // 记账、加入协作等）时才在对应入口弹登录框（requireLogin，可暂不登录）。
+  // 昵称头像的完善也移到「用户主动登录之后」，冷启动不再甩完善卡（见 login.vue 的跳过入口）。
   enterHome()
 })
 
@@ -352,7 +341,8 @@ function goDetail() {
   if (recent.value) safeNav(`/pages/itinerary/itinerary?tripId=${recent.value.id}`)
 }
 function goRoute() {
-  safeNav('/pages/route/route')
+  // 路线规划要调 /api/route/optimize（需登录）→ 点的时候才拦（游客仍可浏览首页）
+  requireLogin(() => safeNav('/pages/route/route'), { tip: '路线规划需要登录后使用' })
 }
 // 历史足迹 = 城市足迹页（footprint 页记录去过的城市/省份，比 tabBar 行程列表更贴「足迹」语义）
 function goFootprint() {
@@ -360,7 +350,8 @@ function goFootprint() {
 }
 // 周边设施独立页：按当前定位查 1km 内最近的公厕/民宿/停车场/充电桩
 function goNearby() {
-  safeNav('/pages/nearby/nearby')
+  // 周边设施查询也要登录（/api/nearby/facilities 未登返回 401）→ 点的时候才拦
+  requireLogin(() => safeNav('/pages/nearby/nearby'), { tip: '附近设施查询需要登录后使用' })
 }
 // 「探索更多」：热门景点列表页未排期，先给个轻提示（不挡主流程）
 function moreInsp() {

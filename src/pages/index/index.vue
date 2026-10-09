@@ -189,7 +189,7 @@ import checkW from '../../assets/icons/check-white.png'
 const ICO = { clock: clockG, users: usersG, wallet: walletG, sliders: slidersG, pen: penG, flame: flameW, check: checkW }
 import CONFIG from '../../utils/config'
 import { REGION } from '../../utils/region'
-import { isLoggedIn, authState, requireLogin } from '../../utils/auth'
+import { requireLogin } from '../../utils/auth'
 import { requestTripSubscribe } from '../../utils/subscribe'
 import AuthMask from '../../components/AuthMask.vue'
 
@@ -383,8 +383,8 @@ const totalTravelers = computed(() => {
   return t.adults + t.children + t.seniors
 })
 
-// 首次进入且未登录：直接弹授权框（游客模式可跳过）
-if (!isLoggedIn()) authState.visible = true
+// 进页不再弹登录（2026-10-09 微信审核整改）：表单随便填，只有「点生成」时才要登录。
+// 见 submit() 里的 requireLogin(doCreate)——功能级拦截，可选「暂不登录」退回表单。
 
 // ---------- 日期工具（手动拼接避免 toISOString 的 UTC 偏移坑） ----------
 function parseDate(s) {
@@ -459,11 +459,16 @@ function submit() {
   const err = validate()
   if (err) { Taro.showToast({ title: err, icon: 'none' }); return }
   if (submitting.value) return
-  // 订阅授权：必须在点击事件里同步调用（微信限制，异步回调里调会 fail），
-  // 且要在调生成接口之前弹 —— 额度是给这次生成的行程在开始当天用的。
-  // 不 await、不看结果：accept / reject / 失败都不阻断生成（详见 utils/subscribe.js）
-  requestTripSubscribe()
-  requireLogin(doCreate)
+  // 功能级登录拦截（2026-10-09）：游客可以随便填表单、看示例，点「生成」才要登录。
+  // 顺序：先登录 → 再订阅 → 再生成。登录成功时 requireLogin 会**同步**回调，
+  // 所以订阅授权仍在本次点击手势内触发（微信要求 requestSubscribeMessage 同步调）。
+  requireLogin(() => {
+    // 订阅授权：必须在点击事件里同步调用（微信限制，异步回调里调会 fail），
+    // 且要在调生成接口之前弹 —— 额度是给这次生成的行程在开始当天用的。
+    // 不 await、不看结果：accept / reject / 失败都不阻断生成（详见 utils/subscribe.js）
+    requestTripSubscribe()
+    doCreate()
+  }, { tip: '生成行程攻略需要登录（生成结果会保存到你的账号，随时可删）' })
 }
 
 function doCreate() {

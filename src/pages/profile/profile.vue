@@ -4,13 +4,13 @@
     <view class="hero-zone">
     <!-- 头部：居中大头像 + 昵称 + slogan（点头像换头像、点昵称改昵称，POST /api/user/profile 部分更新） -->
     <view class="hero">
-      <view class="avatar-box" @tap="changeAvatar">
+      <view class="avatar-box" @tap="onAvatarTap">
         <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill" />
         <view v-else class="avatar">{{ initial }}</view>
         <!-- 深色相机角标：可点击换头像（设计稿样式） -->
         <view class="avatar-edit"><image class="ae-ico" :src="ICO.cameraW" mode="aspectFit" /></view>
       </view>
-      <view class="u-name" @tap="editNickname">{{ nickname }}</view>
+      <view class="u-name" @tap="onNameTap">{{ nickname }}</view>
       <view class="u-slogan">“既然目标是地平线，留给世界的只能是背影。”</view>
     </view>
 
@@ -256,12 +256,28 @@ const ICO = {
 }
 
 // 从响应式镜像取用户信息（token.js 的 sessionState，经 auth 转出），不直接读 storage
+// 游客态（2026-10-09 微信审核整改）：未登录不显示「微信用户」这种假身份，改为「点击登录」引导
+const isGuest = computed(() => !sessionState.loggedIn)
 const nickname = computed(() => {
+  if (isGuest.value) return '点击登录'
   const u = sessionState.user
   return (u && u.nickname) || '微信用户'
 })
-const initial = computed(() => nickname.value.charAt(0) || '微')
+const initial = computed(() => (isGuest.value ? '旅' : (nickname.value.charAt(0) || '微')))
 const avatarUrl = computed(() => (sessionState.user && sessionState.user.avatarUrl) || '')
+
+// 游客点头像/昵称 → 弹登录框（可暂不登录）；已登录才走改资料流程
+function goLogin() {
+  requireLogin(null, { tip: '登录后可保存行程历史、记账与收藏，并同步你的旅行偏好' })
+}
+function onAvatarTap() {
+  if (isGuest.value) { goLogin(); return }
+  changeAvatar()
+}
+function onNameTap() {
+  if (isGuest.value) { goLogin(); return }
+  editNickname()
+}
 
 // 管理员标识：登录响应 data.user.isAdmin（驼峰布尔，2026-09-26 后端确认不再返回 null）。
 // 注意：只在登录时下发，DB 里改了 is_admin 后要重新登录前端才会更新；403 兜底不受影响
@@ -478,9 +494,13 @@ function loadGrowth() {
 // 内嵌面板在真机上「数据到了、无报错、UI 却是 0」，页面级实现自带加载/失败/空态与写入日志，好排查也好维护。
 // 本页只保留成长卡「成就」一处入口跳转。
 function gotoBadges() {
-  Taro.navigateTo({ url: '/pages/badges/badges' }).catch(() => {
-    Taro.showToast({ title: '跳转失败，请重试', icon: 'none' })
-  })
+  goAuthed('/pages/badges/badges', '登录后可查看你的成就与成长值')
+}
+// 需要登录的菜单入口（2026-10-09 微信审核整改）：游客点了先弹登录框（可暂不登录）
+function goAuthed(url, tip) {
+  requireLogin(() => {
+    Taro.navigateTo({ url }).catch(() => Taro.showToast({ title: '跳转失败，请重试', icon: 'none' }))
+  }, { tip: tip || '登录后可查看你的数据' })
 }
 
 function togglePanel(name) {
@@ -675,10 +695,13 @@ const memoCount = ref(0)
 function refreshMemoCount() {
   // 缓存先出数（同步），再拉服务端校正 —— 个人备忘现在存在服务端
   try { memoCount.value = countMemos('mine', '') } catch (e) { memoCount.value = 0 }
+  // 游客（未登录）不拉：/api/user/notes 需登录，拉了只会在页面上挂一条错误提示
+  if (!sessionState.loggedIn) return
   refreshMemos('mine', '').then(l => { memoCount.value = l.length }).catch(() => {})
 }
 function goMemo() {
-  Taro.navigateTo({ url: '/pages/memo/memo' })
+  // 个人备忘存在服务端 → 游客先登录（可暂不登录）
+  goAuthed('/pages/memo/memo', '登录后可记录与同步你的备忘')
 }
 
 function about() {
