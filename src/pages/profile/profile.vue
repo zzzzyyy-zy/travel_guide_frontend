@@ -213,11 +213,14 @@
 
     <!-- 邀请小程序码浮层已撤（2026-10-08 用户要求取消邀请码）；邀请关系仍由转发 path / 朋友圈 query 承载 -->
 
-    <!-- 退出登录：设计稿为独立白底红字胶囊（confirmLogout 有二次确认） -->
-    <view class="logout-btn" @tap="confirmLogout">退出登录</view>
+    <!-- 退出登录：设计稿为独立白底红字胶囊（confirmLogout 有二次确认）；游客态无登录可言 → 不显示 -->
+    <view class="logout-btn" v-if="!isGuest" @tap="confirmLogout">退出登录</view>
 
     <view class="foot">智慧文旅 v1.0 · 课程项目演示版</view>
   </view>
+
+  <!-- 全局登录弹层：游客点「点击登录」/头像/昵称或需登录的菜单入口时弹出 -->
+  <AuthMask />
 </template>
 
 <script setup>
@@ -225,6 +228,7 @@ import { computed, reactive, ref } from 'vue'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { useShare } from '../../utils/share'
 import { sessionState, logout, requireLogin } from '../../utils/auth'
+import AuthMask from '../../components/AuthMask.vue'
 import { saveUser } from '../../utils/token'
 import api from '../../services/api'
 import { countMemos, refreshMemos } from '../../services/memo'

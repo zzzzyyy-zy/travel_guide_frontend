@@ -1,10 +1,10 @@
 // 全局页面注册与窗口/tabBar 配置（对应原生 app.json）
 export default {
   pages: [
-    // 首屏＝首页（2026-10-09 微信审核整改）：冷启动不再直接落在登录页上要求授权，
-    // 游客先看首页，用功能时才弹登录框（AuthMask）。登录页仍保留（完善资料/主动登录用）。
-    'pages/home/home',
+    // 首屏＝登录页（2026-10-09 用户要求改回）：冷启动先进登录界面，用户可点
+    // 「先随便逛逛」以游客身份进首页；生成行程/AI 讲解等功能仍需登录（AuthMask）。
     'pages/login/login',
+    'pages/home/home',
     'pages/index/index',
     'pages/itinerary/itinerary',
     'pages/history/history',

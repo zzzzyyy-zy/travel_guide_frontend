@@ -32,6 +32,9 @@
     </view>
     <view class="fb-foot">你的反馈会直达开发团队，感谢每一个建议</view>
   </view>
+
+  <!-- 全局登录弹层：未登录点「提交反馈」时弹出（反馈需登录态归属） -->
+  <AuthMask />
 </template>
 
 <script setup>
@@ -39,6 +42,7 @@ import { ref, computed } from 'vue'
 import Taro from '@tarojs/taro'
 import api from '../../services/api'
 import { requireLogin } from '../../utils/auth'
+import AuthMask from '../../components/AuthMask.vue'
 
 const contact = ref('')
 const content = ref('')

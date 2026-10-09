@@ -97,6 +97,9 @@
       </view>
     </view>
   </view>
+
+  <!-- 全局登录弹层：游客点「加入行程」「登录后查看」等入口时弹出 -->
+  <AuthMask />
 </template>
 
 <script setup>
@@ -105,6 +108,7 @@ import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { useShare } from '../../utils/share'
 // 游客态（2026-10-09 微信审核整改）：未登录也能进本页，只是列表为空 + 引导登录
 import { sessionState, requireLogin } from '../../utils/auth'
+import AuthMask from '../../components/AuthMask.vue'
 import api from '../../services/api'
 import { cityPhoto } from '../../data/cityImages'
 import { setTab } from '../../utils/tabbar'

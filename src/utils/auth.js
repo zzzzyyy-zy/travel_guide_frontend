@@ -11,6 +11,7 @@ import Taro from '@tarojs/taro'
 import api from '../services/api'
 import { saveToken, clearToken, getToken, getTokenExpiresAt, getUser, syncSession, sessionState } from './token'
 import { pendingInviter, clearInviter } from './invite'
+import { tabStore, setTabBarHidden } from './tabbar'
 
 // 页面统一从 auth 引登录态（sessionState 为响应式，登录/退出后自动更新）
 export { sessionState }
@@ -28,12 +29,19 @@ export const authState = reactive({
 // 2026-10-08：**资料不全也走弹层**——新用户的登录流程是「点登录 → 完善头像昵称」两步，
 // 只判 token 会让资料不全的用户直接放行（绕过完善步骤），或反过来一进来就甩完善卡、
 // 用户压根没见到登录界面。所以这里把「资料不全」等同于「登录流程没走完」：统一先弹登录界面。
+// 弹层期间「自定义 tabBar」的隐藏状态（弹层关闭后原样恢复）
+let tabHiddenBefore = false
+
 export function requireLogin(onOk, opts) {
   if (isLoggedIn() && isProfileComplete()) { onOk && onOk(); return }
   const o = opts || {}
   authState.pending = onOk || null
   authState.tip = o.tip || ''
   authState.skippable = o.skippable !== false
+  // custom-tab-bar 挂在页面 root 之外、自己的层叠上下文里（跨容器比 z-index 不可靠）→
+  // 弹层期间直接不渲染它，否则 tab 页上会盖住蒙层底部与弹卡
+  if (!authState.visible) tabHiddenBefore = tabStore.hidden
+  setTabBarHidden(true)
   authState.visible = true
 }
 
@@ -42,6 +50,7 @@ function resetAuthState() {
   authState.pending = null
   authState.tip = ''
   authState.skippable = true
+  setTabBarHidden(tabHiddenBefore)
 }
 
 // 登录成功：资料齐全 → 关弹层并继续刚才被拦截的操作；
