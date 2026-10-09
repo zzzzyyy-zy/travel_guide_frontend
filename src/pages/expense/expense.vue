@@ -146,14 +146,15 @@ const router = useRouter()
 const tripId = ref(router.params.tripId || '')
 
 // ---------- 开支记账（expenses 五件套：list / summary / add / update / remove）----------
-// 六类（后端 category 是自由 string，无枚举校验）；配色统一青绿相近色系
+// UI 六类；⚠️ 后端对 category 做白名单校验（实测报「分类不合法」）只认 food/accommodation/transport/misc
+// → 新增三类提交时映射回 misc（server 字段）；读回来的 misc 记录由 catOf 兜底显示为「其他」
 const EXP_CATS = [
-  { key: 'food',          label: '餐饮', img: catFood,      bg: '#E6F2EF', color: '#4E9C8D' },
-  { key: 'transport',     label: '交通', img: catTransport, bg: '#E9F1F3', color: '#6E9FA8' },
-  { key: 'accommodation', label: '住宿', img: catAccom,     bg: '#EDF5F2', color: '#86B7AB' },
-  { key: 'shopping',      label: '购物', img: catShopping,  bg: '#F0F4EF', color: '#9DB4A0' },
-  { key: 'fun',           label: '娱乐', img: catFun,       bg: '#F2F7F4', color: '#B7CFC4' },
-  { key: 'other',         label: '其他', img: catOther,     bg: '#F4F9F6', color: '#A9C6BA' }
+  { key: 'food',          label: '餐饮', img: catFood,      bg: '#E6F2EF', color: '#4E9C8D', server: 'food' },
+  { key: 'transport',     label: '交通', img: catTransport, bg: '#E9F1F3', color: '#6E9FA8', server: 'transport' },
+  { key: 'accommodation', label: '住宿', img: catAccom,     bg: '#EDF5F2', color: '#86B7AB', server: 'accommodation' },
+  { key: 'shopping',      label: '购物', img: catShopping,  bg: '#F0F4EF', color: '#9DB4A0', server: 'misc' },
+  { key: 'fun',           label: '娱乐', img: catFun,       bg: '#F2F7F4', color: '#B7CFC4', server: 'misc' },
+  { key: 'other',         label: '其他', img: catOther,     bg: '#F4F9F6', color: '#A9C6BA', server: 'misc' }
 ]
 // 环形图固定用全量四类目配色（与图例一致）
 const expenses = ref([])
@@ -222,7 +223,12 @@ const donutItems = computed(() => {
   } else {
     cats = (expSummary.value && expSummary.value.categories) || {}
   }
-  return EXP_CATS.map(c => ({ key: c.key, label: c.label, color: c.color, val: Number(cats[c.key]) || 0 }))
+  // misc 是后端白名单值（购物/娱乐/其他 上行都映射成 misc），统计时全部归到「其他」
+  return EXP_CATS.map(c => {
+    let val = Number(cats[c.key]) || 0
+    if (c.key === 'other') val += Number(cats.misc) || 0
+    return { key: c.key, label: c.label, color: c.color, val }
+  })
 })
 const donutTotal = computed(() => donutItems.value.reduce((s, c) => s + c.val, 0))
 // conic-gradient 环形占比
@@ -269,7 +275,9 @@ function loadExpenses() {
 function buildExpenseBody() {
   const amount = Number(expAmount.value)
   if (!isFinite(amount) || amount <= 0) { Taro.showToast({ title: '请输入有效金额', icon: 'none' }); return null }
-  return { category: expCat.value, amount, note: expNote.value.trim(), expenseDate: expDate.value }
+  // category 上行用后端白名单值：购物/娱乐/其他 → misc（后端只认四类）
+  const cat = EXP_CATS.find(c => c.key === expCat.value)
+  return { category: (cat && cat.server) || 'misc', amount, note: expNote.value.trim(), expenseDate: expDate.value }
 }
 function openForm() {
   if (!editingExp.value) { expCat.value = 'food'; expAmount.value = ''; expNote.value = ''; expDate.value = new Date().toISOString().slice(0, 10) }
