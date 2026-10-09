@@ -85,8 +85,8 @@ NODE_OPTIONS= npm run dev:weapp
 ```js
 const ENV = 'prod'                 // 'dev' 局域网联调 | 'prod' 生产
 const ENV_URLS = {
-  dev:  'http://192.168.43.149:8080',  // 队友机的 Spring Boot
-  prod: 'https://lworld.site'          // 生产服务器（HTTPS/WSS）
+  dev:  'http://后端ip地址:8080',  // 队友机的 Spring Boot
+  prod: 'https://服务器域名'          // 生产服务器（HTTPS/WSS）
 }
 ```
 
