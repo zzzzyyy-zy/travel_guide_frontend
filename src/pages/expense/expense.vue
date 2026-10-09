@@ -28,7 +28,7 @@
       <!-- 支出构成：环形占比（conic-gradient）+ 图例 -->
       <view class="sec-head">
         <text class="sec-head-title">支出构成</text>
-        <view class="range-pick" @tap="toggleRange">{{ rangeMode === '7d' ? '最近7天' : '全部' }}<text class="range-caret">⌄</text></view>
+        <view class="range-pick" @tap="toggleRange">{{ rangeMode === '7d' ? '最近7天' : '全部' }}<view class="range-caret" /></view>
       </view>
       <view class="card chart-card">
         <view class="donut" :style="{ background: donutStyle }">
@@ -73,32 +73,52 @@
       <!-- 悬浮记一笔 -->
       <view class="fab-add" @tap="openForm"><text class="fab-plus">＋</text>记一笔</view>
 
-      <!-- 记一笔弹层（分类 chips + 金额 + 备注 + 日期） -->
+      <!-- 记一笔弹层（纯净极简版：大金额 + 六类格子 + 日期行 + 备注卡 + 保存记录） -->
       <view class="mask" v-if="showForm" @tap="closeForm" />
       <view class="sheet" v-if="showForm">
-        <view class="sheet-bar" />
-        <view class="sheet-title">{{ editingExp ? '修改这笔' : '记一笔' }}</view>
-        <view class="exp-form-row">
-          <view class="exp-chip" v-for="c in EXP_CATS" :key="c.key"
-            :class="{ on: expCat === c.key, editing: editingExp && editingExp.category === c.key }"
-            @tap="expCat = c.key"><image class="ec-ico" :src="c.img" mode="aspectFit" />{{ c.label }}</view>
+        <view class="sheet-nav">
+          <view class="sheet-back" @tap="closeForm"><view class="sheet-back-ico" /></view>
+          <text class="sheet-title">{{ editingExp ? '修改支出' : '新增支出' }}</text>
+          <view class="sheet-nav-ph" />
         </view>
-        <view class="exp-form-row">
-          <input class="exp-input amount" type="digit" v-model="expAmount" placeholder="金额"
-            :disabled="!!expBusy" maxlength="9" />
-          <input class="exp-input" v-model="expNote" placeholder="备注（如 午餐）"
-            :disabled="!!expBusy" maxlength="20" />
+
+        <view class="sec-label">支出金额</view>
+        <view class="amt-box">
+          <text class="amt-sym">¥</text>
+          <input class="amt-input" type="digit" v-model="expAmount" :disabled="!!expBusy"
+            maxlength="9" placeholder="0.00" placeholder-class="amt-ph" />
         </view>
-        <view class="exp-form-row">
-          <picker mode="date" :value="expDate" @change="e => (expDate = e.detail.value)">
-            <view class="exp-date">{{ expDate }}</view>
-          </picker>
-        </view>
-        <view class="exp-form-btns">
-          <view class="exp-submit" :class="{ disabled: expBusy }" @tap="expBusy ? null : (editingExp ? saveExpense() : addExpense())">
-            {{ expBusy ? '…' : (editingExp ? '保存修改' : '记一笔') }}
+
+        <view class="sec-label">支出类别</view>
+        <view class="cat-grid">
+          <view class="cat-cell" v-for="c in EXP_CATS" :key="c.key"
+            :class="{ on: expCat === c.key }" @tap="expCat = c.key">
+            <image class="cat-ico" :src="c.img" mode="aspectFit" />
+            <text class="cat-txt">{{ c.label }}</text>
           </view>
-          <view class="exp-cancel" @tap="closeForm">{{ editingExp ? '取消编辑' : '取消' }}</view>
+        </view>
+
+        <picker mode="date" :value="expDate" @change="e => (expDate = e.detail.value)">
+          <view class="row-card">
+            <image class="row-ico" :src="calImg" mode="aspectFit" />
+            <text class="row-label">日期</text>
+            <text class="row-val">{{ expDateCn }}</text>
+            <view class="row-arrow" />
+          </view>
+        </picker>
+
+        <view class="row-card note-card">
+          <view class="note-head">
+            <image class="row-ico" :src="noteImg" mode="aspectFit" />
+            <text class="row-label">备注</text>
+          </view>
+          <textarea class="note-input" v-model="expNote" :disabled="!!expBusy" maxlength="50"
+            placeholder="这一餐在哪吃的？味道如何…" placeholder-class="note-ph" />
+        </view>
+
+        <view class="save-btn" :class="{ disabled: expBusy }"
+          @tap="expBusy ? null : (editingExp ? saveExpense() : addExpense())">
+          <text class="save-check">✓</text>{{ expBusy ? '保存中…' : '保存记录' }}
         </view>
       </view>
     </template>
@@ -111,10 +131,14 @@ import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import api from '../../services/api'
 
 import closeGr from '../../assets/icons/close-gray.png'
-import hotelImg from '../../assets/icons/hotel-orange.png'
-import trainImg from '../../assets/icons/train-purple.png'
-import utensilsImg from '../../assets/icons/utensils-teal.png'
-import bagImg from '../../assets/icons/shopping-pink.png'
+import catFood from '../../assets/icons/utensils-teal.png'
+import catTransport from '../../assets/icons/cat-transport.png'
+import catAccom from '../../assets/icons/cat-accommodation.png'
+import catShopping from '../../assets/icons/cat-shopping.png'
+import catFun from '../../assets/icons/cat-fun.png'
+import catOther from '../../assets/icons/cat-other.png'
+import calImg from '../../assets/icons/calendar-gray.png'
+import noteImg from '../../assets/icons/note-pen-gray.png'
 
 const ICO = { close: closeGr }
 
@@ -122,11 +146,14 @@ const router = useRouter()
 const tripId = ref(router.params.tripId || '')
 
 // ---------- 开支记账（expenses 五件套：list / summary / add / update / remove）----------
+// 六类（后端 category 是自由 string，无枚举校验）；配色统一青绿相近色系
 const EXP_CATS = [
-  { key: 'food',          label: '餐饮', img: utensilsImg, bg: '#E6F2EF', color: '#4E9C8D' },
-  { key: 'accommodation', label: '住宿', img: hotelImg,    bg: '#FCF0E1', color: '#E8A24B' },
-  { key: 'transport',     label: '交通', img: trainImg,    bg: '#EEEBF9', color: '#8E7CD8' },
-  { key: 'misc',          label: '临时', img: bagImg,      bg: '#FAE9EF', color: '#D97BA0' }
+  { key: 'food',          label: '餐饮', img: catFood,      bg: '#E6F2EF', color: '#4E9C8D' },
+  { key: 'transport',     label: '交通', img: catTransport, bg: '#E9F1F3', color: '#6E9FA8' },
+  { key: 'accommodation', label: '住宿', img: catAccom,     bg: '#EDF5F2', color: '#86B7AB' },
+  { key: 'shopping',      label: '购物', img: catShopping,  bg: '#F0F4EF', color: '#9DB4A0' },
+  { key: 'fun',           label: '娱乐', img: catFun,       bg: '#F2F7F4', color: '#B7CFC4' },
+  { key: 'other',         label: '其他', img: catOther,     bg: '#F4F9F6', color: '#A9C6BA' }
 ]
 // 环形图固定用全量四类目配色（与图例一致）
 const expenses = ref([])
@@ -143,11 +170,17 @@ const budgetNum = ref(0)       // detail.budget 自由文本解析出的数字�
 const rangeMode = ref('all')   // 支出构成统计范围：all | 7d
 
 function catOf(key) {
-  return EXP_CATS.find(c => c.key === key) || EXP_CATS[3]
+  return EXP_CATS.find(c => c.key === key) || EXP_CATS[5]
 }
 function fmt2(v) {
   return (Number(v) || 0).toFixed(2)
 }
+// 日期中文展示：2024年5月24日（弹层日期行用）
+const expDateCn = computed(() => {
+  const m = String(expDate.value || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (!m) return expDate.value
+  return `${m[1]}年${Number(m[2])}月${Number(m[3])}日`
+})
 const totalExp = computed(() => (expSummary.value && Number(expSummary.value.total)) || 0)
 // 日期标签：今天/昨天 · M月D日
 function dateLabel(ds) {
@@ -328,8 +361,9 @@ useDidShow(() => { loadExpenses() })
 /* 区块标题行 */
 .sec-head { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 8rpx 18rpx; }
 .sec-head-title { font-size: 30rpx; font-weight: 600; color: #1F2937; }
-.range-pick { font-size: 24rpx; color: #868E96; display: flex; align-items: center; gap: 6rpx; }
-.range-caret { font-size: 22rpx; color: #ADB5BD; }
+.range-pick { font-size: 24rpx; color: #868E96; display: flex; align-items: center; gap: 8rpx; }
+/* CSS 画的下箭头（字符 ⌄ 基线不齐，会偏离文字中线） */
+.range-caret { width: 12rpx; height: 12rpx; border-right: 3rpx solid #ADB5BD; border-bottom: 3rpx solid #ADB5BD; transform: rotate(45deg); margin-top: -6rpx; }
 
 /* 支出构成（环形图 + 图例） */
 .chart-card { display: flex; flex-direction: column; align-items: center; padding: 36rpx 26rpx; margin-bottom: 8rpx; }
@@ -368,26 +402,58 @@ useDidShow(() => { loadExpenses() })
 }
 .fab-plus { font-size: 30rpx; }
 
-/* 记一笔弹层 */
+/* 记一笔弹层（纯净极简版） */
 .mask { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.35); z-index: 30; }
 .sheet {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 31;
-  background: #ffffff; border-radius: 32rpx 32rpx 0 0;
-  padding: 18rpx 28rpx calc(30rpx + env(safe-area-inset-bottom)); box-sizing: border-box;
+  background: #F7F9F8; border-radius: 32rpx 32rpx 0 0;
+  padding: 20rpx 32rpx calc(30rpx + env(safe-area-inset-bottom)); box-sizing: border-box;
 }
-.sheet-bar { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: #E9ECEF; margin: 0 auto 18rpx; }
-.sheet-title { font-size: 30rpx; font-weight: 600; color: #1F2937; margin-bottom: 20rpx; }
+/* 顶部导航行：返回 + 居中标题 */
+.sheet-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6rpx; }
+.sheet-back { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.sheet-back-ico { width: 18rpx; height: 18rpx; border-left: 4rpx solid #495057; border-bottom: 4rpx solid #495057; transform: rotate(45deg); margin-left: 6rpx; }
+.sheet-title { font-size: 32rpx; font-weight: 600; color: #1F2937; }
+.sheet-nav-ph { width: 56rpx; height: 56rpx; }
 
-.exp-form-row { display: flex; gap: 12rpx; margin-bottom: 16rpx; align-items: center; flex-wrap: wrap; }
-.exp-chip { display: flex; align-items: center; gap: 6rpx; font-size: 24rpx; color: #495057; background: #F1F3F5; padding: 10rpx 20rpx; border-radius: 999rpx; border: 1rpx solid transparent; }
-.exp-chip.on { color: #4E9C8D; background: #E6F2EF; border-color: #4E9C8D; font-weight: 600; }
-.exp-chip.editing { border-color: #F29979; }
-.ec-ico { width: 26rpx; height: 26rpx; }
-.exp-input { flex: 1; min-width: 180rpx; border: 1rpx solid #DEE2E6; border-radius: 12rpx; padding: 12rpx 18rpx; font-size: 26rpx; }
-.exp-input.amount { max-width: 200rpx; }
-.exp-date { font-size: 24rpx; color: #4E9C8D; background: #F1F3F5; padding: 12rpx 20rpx; border-radius: 12rpx; }
-.exp-form-btns { display: flex; gap: 20rpx; align-items: center; margin-top: 6rpx; }
-.exp-submit { font-size: 26rpx; color: #fff; background: linear-gradient(135deg, #6FB3A6, #4E9488); padding: 14rpx 44rpx; border-radius: 999rpx; }
-.exp-submit.disabled { opacity: 0.6; }
-.exp-cancel { font-size: 24rpx; color: #868E96; padding: 8rpx 12rpx; }
+.sec-label { font-size: 24rpx; color: #868E96; margin: 26rpx 4rpx 14rpx; }
+/* 大金额 */
+.amt-box { display: flex; align-items: center; justify-content: center; background: #ffffff; border-radius: 24rpx; padding: 30rpx 24rpx; }
+.amt-sym { font-size: 36rpx; color: #868E96; margin-right: 16rpx; }
+.amt-input { flex: 1; font-size: 68rpx; font-weight: 700; color: #1F2937; text-align: center; height: 88rpx; line-height: 88rpx; }
+.amt-ph { color: #CED4DA; font-weight: 700; }
+
+/* 六类格子（2 行 3 列） */
+.cat-grid { display: flex; flex-wrap: wrap; justify-content: space-between; }
+.cat-cell {
+  width: 31%; box-sizing: border-box; margin-bottom: 18rpx;
+  background: #ffffff; border-radius: 24rpx; padding: 30rpx 0 24rpx;
+  display: flex; flex-direction: column; align-items: center; gap: 12rpx;
+  border: 2rpx solid transparent;
+}
+.cat-cell.on { background: #DCEBE6; border-color: #BBD8CE; }
+.cat-ico { width: 48rpx; height: 48rpx; }
+.cat-txt { font-size: 24rpx; color: #495057; }
+.cat-cell.on .cat-txt { color: #3E7E72; font-weight: 600; }
+
+/* 日期行 / 备注卡 */
+.row-card { background: #ffffff; border-radius: 24rpx; padding: 28rpx 26rpx; margin-bottom: 18rpx; display: flex; align-items: center; gap: 14rpx; }
+.row-ico { width: 32rpx; height: 32rpx; flex-shrink: 0; }
+.row-label { font-size: 26rpx; color: #495057; }
+.row-val { flex: 1; text-align: right; font-size: 26rpx; color: #868E96; }
+/* CSS 画的右箭头 */
+.row-arrow { width: 14rpx; height: 14rpx; border-top: 3rpx solid #ADB5BD; border-right: 3rpx solid #ADB5BD; transform: rotate(45deg); flex-shrink: 0; }
+.note-card { display: block; }
+.note-head { display: flex; align-items: center; gap: 14rpx; }
+.note-input { width: 100%; box-sizing: border-box; min-height: 90rpx; margin-top: 16rpx; font-size: 26rpx; color: #1F2937; }
+.note-ph { color: #CED4DA; }
+
+/* 底部保存按钮 */
+.save-btn {
+  margin-top: 10rpx; display: flex; align-items: center; justify-content: center; gap: 10rpx;
+  font-size: 30rpx; font-weight: 600; color: #ffffff;
+  background: #9FC3B9; border-radius: 999rpx; padding: 26rpx 0;
+}
+.save-btn.disabled { opacity: 0.6; }
+.save-check { font-size: 28rpx; }
 </style>
