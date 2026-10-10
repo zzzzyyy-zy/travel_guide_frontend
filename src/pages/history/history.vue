@@ -2,37 +2,41 @@
   <view class="wrap">
     <!-- 页标题 -->
 
-    <!-- 筛选条：收藏 + 协作行程 + 加入协作（激活=实心绿+✕，再点即回到全部行程） -->
-    <view class="fav-filter">
-      <view class="fav-chip chip-row" :class="{ on: favOnly }" @tap="tapFav">
-        <image class="chip-ico" :src="ICO.starFill" mode="aspectFit" />
-        <text>收藏</text>
-        <image v-if="favOnly" class="chip-x" :src="ICO.closeLight" mode="aspectFit" />
-      </view>
-      <view class="fav-chip chip-row" :class="{ on: collabOnly }" @tap="pickCollab">
-        <image class="chip-ico" :src="ICO.users" mode="aspectFit" />
-        <text>协作行程</text>
-        <image v-if="collabOnly" class="chip-x" :src="ICO.closeLight" mode="aspectFit" />
+    <!-- 搜索行：搜索框 + 右侧「加入行程」小图标（原顶部三枚胶囊堆叠 → 2026-10-09 改版） -->
+    <view class="search-row">
+      <view class="search-bar">
+        <image class="search-icon" :src="ICO.search" mode="aspectFit" />
+        <input class="search-input" v-model="keyword" :maxlength="30"
+          placeholder="搜索过往行程" placeholder-class="search-ph" confirm-type="search" />
+        <image class="search-clear" v-if="keyword" :src="ICO.close" mode="aspectFit" @tap="keyword = ''" />
       </view>
       <!-- 加入协作：主人给 16 位口令，好友粘贴即入（后端文档 2026-09-28） -->
-      <view class="join-entry" @tap="openJoin">
+      <view class="join-icon" @tap="openJoin">
         <image class="join-ico" :src="ICO.plusGreen" mode="aspectFit" />
-        <text>加入行程</text>
       </view>
     </view>
 
-    <!-- 搜索过往行程（本地过滤：标题/城市） -->
-    <view class="search-bar">
-      <image class="search-icon" :src="ICO.search" mode="aspectFit" />
-      <input class="search-input" v-model="keyword" :maxlength="30"
-        placeholder="搜索过往行程" placeholder-class="search-ph" confirm-type="search" />
-      <image class="search-clear" v-if="keyword" :src="ICO.close" mode="aspectFit" @tap="keyword = ''" />
+    <!-- 分段控制器：全部行程 / 收藏 / 协作行程（互斥单选，替代原三枚并排胶囊） -->
+    <view class="seg">
+      <view class="seg-item" :class="{ on: activeTab === 'all' }" @tap="pickTab('all')">全部行程</view>
+      <view class="seg-item" :class="{ on: activeTab === 'fav' }" @tap="pickTab('fav')">收藏</view>
+      <view class="seg-item" :class="{ on: activeTab === 'collab' }" @tap="pickTab('collab')">协作行程</view>
     </view>
 
-    <!-- 按月分组的卡片列表 -->
+    <!-- 长按提示：删除/退出协作收进了长按菜单；顺带点名右上 ＋ 的用途（无行程时不显示） -->
+    <view class="lp-hint" v-if="groups.length && !isGuest">
+      <text>长按行程卡片可收藏、删除或退出协作 · 点上方 ＋ 加入协作行程</text>
+    </view>
+
+    <!-- 按月分组的卡片列表（月份标签加粗吸顶，滚动时快速定位） -->
     <view v-for="g in groups" :key="g.key" class="month-sec">
-      <view class="month-label">{{ g.label }}</view>
-      <view class="trip-card" v-for="t in g.list" :key="t.id" @tap="openTrip(t)">
+      <view class="month-label">
+        <text class="month-txt">{{ g.label }}</text>
+      </view>
+      <!-- 长按卡片弹操作菜单（收藏/删除/退出协作）：删除是低频破坏性操作，不占主视觉（2026-10-09 用户定稿） -->
+      <view class="trip-card" v-for="t in g.list" :key="t.id" @tap="openTrip(t)" @longpress="onCardMenu(t)">
+        <!-- 收藏星标：悬浮在卡片右上角，不与底部按钮抢视线 -->
+        <image class="fav-star" :class="{ on: t.isFavorite }" :src="t.isFavorite ? ICO.starFill : ICO.starLine" mode="aspectFit" @tap.stop="toggleFav(t)" />
         <!-- 封面位：有城市照片用真实风景照，没有用城市/标题首字渐变色块兜底 -->
         <image v-if="coverImg(t)" class="trip-cover" :src="coverImg(t)" mode="aspectFill" />
         <view v-else class="trip-cover" :style="coverStyle(t)">{{ coverChar(t) }}</view>
@@ -43,7 +47,6 @@
               <!-- 协作角标：只要除我之外还有人（我创建的 / 别人分享给我的）都算协作，判定见 utils/collab.js -->
               <text class="collab-badge" v-if="isCollabTrip(t)">{{ collabBadge(t) }}</text>
             </view>
-            <image class="fav-star" :class="{ on: t.isFavorite }" :src="t.isFavorite ? ICO.starFill : ICO.starLine" mode="aspectFit" @tap.stop="toggleFav(t)" />
           </view>
           <view class="trip-sub">
             <image class="sub-ico" :src="ICO.calendar" mode="aspectFit" />
@@ -51,12 +54,7 @@
           </view>
           <view class="trip-foot">
             <text class="trip-status" :class="statusOf(t)">{{ statusText(t) }}</text>
-            <view class="foot-actions">
-              <!-- 删除仅 owner（协作行程由后端 403 拦，这里直接不给入口） -->
-              <text class="action danger" v-if="t.isOwner !== false" @tap.stop="removeTrip(t)">删除</text>
-              <text class="action quit" v-else @tap.stop="exitCollab(t)">退出协作</text>
-              <view class="detail-link">查看详情<image class="link-ico" :src="ICO.chevron" mode="aspectFit" /></view>
-            </view>
+            <view class="detail-link">查看详情<image class="link-ico" :src="ICO.chevron" mode="aspectFit" /></view>
           </view>
         </view>
       </view>
@@ -75,17 +73,12 @@
 
     <view class="note center" v-if="loading">加载中…</view>
 
-    <!-- 底部大按钮：＋ 添加新回忆 → 创建行程 -->
-    <view class="add-btn" hover-class="add-hover" @tap="goHome">
-      <image class="add-ico" :src="ICO.plusWhite" mode="aspectFit" />
-      <text>添加新回忆</text>
-    </view>
-
     <!-- 输入口令加入协作（POST /api/trip/join，幂等：重复加入/owner 自己加入都不会报错） -->
     <view class="join-mask" v-if="joinVisible" @tap="closeJoin">
       <view class="join-pop" @tap.stop>
         <view class="join-pop-title">加入协作行程</view>
-        <view class="join-pop-sub">把主人分享的 16 位口令粘贴进来，加入后可一起编辑、重排</view>
+        <!-- 单行文案：内容宽 528rpx / 24rpx 字号≈22 字，本句 19 字放得下（nowrap 兜底防折行） -->
+        <view class="join-pop-sub">粘贴同伴分享的 16 位口令，即可一起编辑</view>
         <input class="join-input" v-model="joinToken" :disabled="joining" :maxlength="40"
           placeholder="粘贴分享口令" placeholder-class="join-ph" confirm-type="done" @confirm="doJoin" />
         <view class="join-btns">
@@ -110,8 +103,8 @@ import { useShare } from '../../utils/share'
 import { sessionState, requireLogin } from '../../utils/auth'
 import AuthMask from '../../components/AuthMask.vue'
 import api from '../../services/api'
-import { cityPhoto } from '../../data/cityImages'
-import { setTab } from '../../utils/tabbar'
+import { cityThumb } from '../../data/cityImages'
+import { setTab, setTabBarHidden } from '../../utils/tabbar'
 import { isCollabTrip, fetchMemberCounts, clearCollabCache } from '../../utils/collab'
 // 图标资源：Iconify 图标库（Lucide / MDI，MIT）按主色预渲染的 PNG（生成脚本见项目笔记 2026-10-01）
 import starFill from '../../assets/icons/star-fill.png'
@@ -120,22 +113,22 @@ import starFillBig from '../../assets/icons/star-fill-big.png'
 import search from '../../assets/icons/search-gray.png'
 import searchGreen from '../../assets/icons/search-green.png'
 import close from '../../assets/icons/close-gray.png'
-import closeLight from '../../assets/icons/close-light.png'
 import calendar from '../../assets/icons/calendar-gray.png'
-import chevron from '../../assets/icons/chevron-right.png'
+import chevron from '../../assets/icons/chevron-right-gray.png'
 import plusGreen from '../../assets/icons/plus-green.png'
-import plusWhite from '../../assets/icons/plus-white.png'
 import users from '../../assets/icons/users-green.png'
 import luggage from '../../assets/icons/luggage-green.png'
 
-const ICO = { starFill, starLine, search, close, closeLight, calendar, chevron, plusGreen, plusWhite, users }
+const ICO = { starFill, starLine, search, close, calendar, chevron, plusGreen, users }
 
 // 本页开启下拉刷新：配置在同名 history.config.js（definePageConfig 宏在 vue SFC 里不生效，实测）
 
 const allItems = ref([])     // 全量列表（唯一数据源）
 const loading = ref(false)
-const favOnly = ref(false)   // true = 只看收藏
-const collabOnly = ref(false) // true = 只看协作行程（≥2 人：我创建的有人加入 / 别人分享给我的，见 utils/collab.js）
+// 分段控制器：all=全部行程 / fav=只看收藏 / collab=只看协作行程（单一状态，替代原来的两个布尔互相纠偏）
+const activeTab = ref('all')
+const favOnly = computed(() => activeTab.value === 'fav')
+const collabOnly = computed(() => activeTab.value === 'collab')
 const keyword = ref('')      // 搜索词（标题/城市，本地过滤）
 
 // 游客态：未登录进本页不弹登录框，列表为空 + 空态引导点登录（2026-10-09 微信审核整改）
@@ -190,7 +183,7 @@ const emptyTitle = computed(() => {
 const emptyNote = computed(() => {
   if (isGuest.value) return '行程、收藏与协作记录都保存在账号里，登录后可随时查看'
   if (favOnly.value) return '在行程卡片点亮星标即可收藏'
-  if (collabOnly.value) return '把行程口令分享给朋友，或点右上「加入行程」，有人一起就是协作行程'
+  if (collabOnly.value) return '把行程口令分享给朋友，或点右上角 ＋ 按钮加入，有人一起就是协作行程'
   if (keyword.value.trim()) return '换个关键词试试，或清空搜索看全部'
   return '去「首页」创建第一份行程吧'
 })
@@ -213,6 +206,7 @@ useShare(() => ({
 
 useDidShow(() => {
   setTab(1)
+  setTabBarHidden(false)   // 兜底：弹层期间隐藏过 tabBar，回到本页一定恢复
   refresh()
 })
 
@@ -248,18 +242,11 @@ function refresh() {
   })
 }
 
-// 收藏与协作互斥；点亮中的 chip 再点一次即取消（✕ 是提示，整枚 chip 都可点）
-function tapFav() {
-  favOnly.value = !favOnly.value
-  if (favOnly.value) collabOnly.value = false
-}
-function pickCollab() {
-  favOnly.value = false
-  collabOnly.value = !collabOnly.value
-}
+// 分段控制器：三个 tab 互斥单选（原来两个 chip 靠互相纠偏，改成单一状态更不易错）
+// 注意：不能叫 setTab —— 本页已从 utils/tabbar import setTab（自定义 tabBar 选中态），重名会编译报错
+function pickTab(name) { activeTab.value = name }
 function clearFilters() {
-  favOnly.value = false
-  collabOnly.value = false
+  activeTab.value = 'all'
   keyword.value = ''
 }
 
@@ -306,9 +293,9 @@ function statusText(t) {
   return m[statusOf(t)] || '已完成'
 }
 
-// ---------- 封面：优先城市真实风景照（cityImages 映射），无照片回退首字+渐变 ----------
+// ---------- 封面：优先城市缩略图（cityThumb 映射，21 城 = 4 直辖市 + 主要省会），无图回退首字+渐变 ----------
 function coverImg(t) {
-  return cityPhoto(t.city)
+  return cityThumb(t.city)
 }
 const COVER_GRADS = [
   'linear-gradient(135deg, #4ADE80, #16A34A)',
@@ -357,12 +344,15 @@ function openJoin() {
   requireLogin(() => {
     joinToken.value = ''
     joinVisible.value = true
+    // 自定义 tabBar 挂在页面 root 之外，蒙层盖不住它（会保持高亮通透）→ 弹层期间直接隐藏整条
+    setTabBarHidden(true)
   }, { tip: '加入协作行程需要登录（协作记录会关联到你的账号）' })
 }
 
 function closeJoin() {
   if (joining.value) return   // 请求中不允许关，避免状态错乱
   joinVisible.value = false
+  setTabBarHidden(false)
 }
 
 function doJoin() {
@@ -383,6 +373,7 @@ function doJoin() {
     if (!tid) throw { message: '加入失败，稍后再试' }
     joinVisible.value = false
     joinToken.value = ''
+    setTabBarHidden(false)   // 跳详情页前先把 tabBar 恢复，避免返回时整条不见
     clearCollabCache()   // 刚加入的行程成员数变了，缓存作废
     Taro.setStorageSync('currentTripId', tid)
     Taro.showToast({ title: '已加入协作', icon: 'success' })
@@ -447,35 +438,60 @@ function goHome() {
   // 表单页已移出 tabBar，改用 navigateTo（tab 页才需要 switchTab）
   Taro.navigateTo({ url: '/pages/index/index' })
 }
+
+// 长按卡片 → 原生操作菜单：收藏 + 删除/退出协作（低频破坏性操作收进这里，不占卡片主视觉）
+// 协作行程必给「退出协作」（owner 点了会收到后端「创建者不能退出」的提示）；「删除行程」仅 owner 可见
+function onCardMenu(t) {
+  if (!t || t.id == null) return
+  const items = [t.isFavorite ? '取消收藏' : '收藏']
+  const acts = ['fav']                       // actions 与 items 一一同序，避免下标算错
+  if (isCollabTrip(t)) { items.push('退出协作'); acts.push('exit') }
+  if (t.isOwner !== false) { items.push('删除行程'); acts.push('del') }
+  Taro.showActionSheet({
+    itemList: items,
+    success: res => {
+      const act = acts[res.tapIndex]
+      if (act === 'fav') toggleFav(t)
+      else if (act === 'exit') exitCollab(t)
+      else if (act === 'del') removeTrip(t)
+    },
+    // 点「取消」/点遮罩会走 fail（errMsg: "showActionSheet:fail cancel"）→ 必须兜住，否则是未捕获的 Promise 拒绝
+    fail: () => {}
+  })
+}
 </script>
 
 <style>
 /* 自定义 tabBar 悬浮底部：给列表和底部按钮留出空间 */
 .wrap { padding-bottom: calc(240rpx + env(safe-area-inset-bottom)); }
 
-/* 筛选 chips（设计稿：激活=实心绿/白字，未激活=白底描边） */
-.fav-filter { display: flex; align-items: center; gap: 16rpx; flex-wrap: wrap; padding-bottom: 24rpx; }
-.fav-chip {
-  font-size: 26rpx; color: #4B5563; padding: 12rpx 32rpx;
-  background: #ffffff; border: 1rpx solid #E8E8E8; border-radius: 999rpx;
+/* 搜索行：搜索框 + 右侧加入行程小图标 */
+.search-row { display: flex; align-items: center; gap: 16rpx; }
+.join-icon {
+  width: 76rpx; height: 76rpx; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #ffffff; border: 1rpx solid #E8E8E8; border-radius: 20rpx;
 }
-.fav-chip.on { color: #ffffff; background: #22C55E; border-color: #22C55E; font-weight: 600; }
-.chip-row { display: flex; align-items: center; gap: 8rpx; }
-.chip-ico { width: 26rpx; height: 26rpx; }
-.chip-x { width: 22rpx; height: 22rpx; margin-left: 2rpx; }
-/* 加入行程入口：margin-left:auto 靠右，不动原有 chips 布局 */
-.join-entry {
-  margin-left: auto; display: flex; align-items: center; gap: 6rpx;
-  font-size: 24rpx; color: #15803D; background: #E7F9EE;
-  padding: 10rpx 24rpx; border-radius: 999rpx; font-weight: 600;
+.join-ico { width: 32rpx; height: 32rpx; }
+
+/* 分段控制器：全部行程 / 收藏 / 协作行程（三等分，激活=白底浮起） */
+.seg {
+  display: flex; align-items: center;
+  background: #EDF2EF; border-radius: 999rpx;
+  padding: 6rpx; margin: 20rpx 0 24rpx;
 }
-.join-ico { width: 24rpx; height: 24rpx; }
+.seg-item {
+  flex: 1; text-align: center; font-size: 26rpx; color: #8A9490;
+  padding: 14rpx 0; border-radius: 999rpx;
+}
+.seg-item.on { background: #ffffff; color: #1F2937; font-weight: 600; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06); }
 
 /* 搜索条 */
 .search-bar {
+  flex: 1; min-width: 0;
   display: flex; align-items: center;
   background: #ffffff; border-radius: 999rpx;
-  padding: 20rpx 28rpx; margin-bottom: 32rpx;
+  padding: 20rpx 28rpx;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.04);
 }
 .search-icon { width: 32rpx; height: 32rpx; margin-right: 14rpx; flex-shrink: 0; }
@@ -483,12 +499,28 @@ function goHome() {
 .search-ph { color: #ADB5BD; }
 .search-clear { width: 26rpx; height: 26rpx; padding: 8rpx; flex-shrink: 0; }
 
+/* 长按操作提示（删除/退出已收进长按菜单）：弱化小字，可读即可 */
+.lp-hint {
+  display: flex; align-items: center; gap: 8rpx;
+  font-size: 20rpx; color: #9AA5A0;
+  background: #F1F6F3; border-radius: 12rpx;
+  padding: 8rpx 16rpx; margin-bottom: 20rpx;
+}
+
 /* 月份分组标题 */
 .month-sec { margin-bottom: 8rpx; }
-.month-label { font-size: 26rpx; color: #6B7280; font-weight: 600; padding: 8rpx 4rpx 16rpx; }
+/* 月份标签：加粗放大 + 吸顶（负边距通栏铺底防卡片透出）；时间轴圆点/延伸线已按用户要求移除 */
+.month-label {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center;
+  margin: 0 -28rpx; padding: 16rpx 28rpx 16rpx 32rpx;
+  background: rgba(247, 249, 249, 0.96);
+}
+.month-txt { font-size: 34rpx; color: #1F2937; font-weight: 700; }
 
-/* 行程卡片：左封面 + 右内容（设计稿半扁平风） */
+/* 行程卡片：左封面 + 右内容（设计稿半扁平风）；relative 供收藏星标右上角悬浮 */
 .trip-card {
+  position: relative;
   display: flex; background: #ffffff; border-radius: 32rpx;
   padding: 20rpx; margin-bottom: 24rpx;
   box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.05);
@@ -500,26 +532,24 @@ function goHome() {
 }
 .trip-main { flex: 1; min-width: 0; margin-left: 22rpx; display: flex; flex-direction: column; }
 .trip-head { display: flex; justify-content: space-between; align-items: center; }
-.trip-title-wrap { display: flex; align-items: center; gap: 12rpx; flex: 1; min-width: 0; }
+.trip-title-wrap { display: flex; align-items: center; gap: 12rpx; flex: 1; min-width: 0; padding-right: 48rpx; }
 .trip-title { font-size: 30rpx; font-weight: 700; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .collab-badge {
   flex-shrink: 0; font-size: 20rpx; color: #15803D; background: #E7F9EE;
   border-radius: 999rpx; padding: 2rpx 14rpx;
 }
-.fav-star { width: 34rpx; height: 34rpx; padding: 0 4rpx 0 10rpx; flex-shrink: 0; }
+/* 收藏星标：卡片右上角悬浮（原在标题行内，改为不与底部按钮抢视线） */
+.fav-star { position: absolute; top: 14rpx; right: 16rpx; width: 34rpx; height: 34rpx; z-index: 2; }
 .trip-sub { display: flex; align-items: center; font-size: 24rpx; color: #868E96; margin-top: 10rpx; }
 .sub-ico { width: 26rpx; height: 26rpx; margin-right: 8rpx; flex-shrink: 0; }
-/* 卡片底行：状态徽标左、操作右 */
+/* 卡片底行：状态徽标左、查看详情右（删除/退出已收进长按菜单） */
 .trip-foot { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 14rpx; }
 .trip-status { font-size: 21rpx; padding: 6rpx 18rpx; border-radius: 999rpx; }
 .trip-status.completed { background: #E7F9EE; color: #15803D; }
 .trip-status.running, .trip-status.queued { background: #E7F9EE; color: #22C55E; }
 .trip-status.failed { background: #fdecea; color: #d9534f; }
 .trip-status.canceled { background: #E8E8E8; color: #868E96; }
-.foot-actions { display: flex; align-items: center; }
-.action { font-size: 23rpx; color: #d9534f; padding: 6rpx 0 6rpx 22rpx; }
-.action.quit { color: #868E96; }
-.detail-link { display: flex; align-items: center; font-size: 24rpx; color: #22C55E; font-weight: 600; padding-left: 22rpx; }
+.detail-link { display: flex; align-items: center; font-size: 24rpx; color: #A0ABA6; }
 .link-ico { width: 26rpx; height: 26rpx; margin-left: 2rpx; }
 
 /* 空态 */
@@ -527,16 +557,6 @@ function goHome() {
 .big-icon { width: 96rpx; height: 96rpx; margin: 0 auto 20rpx; display: block; }
 .btn.ghost { background: #fff; color: #22C55E; border: 1rpx solid #22C55E; }
 .note.center { text-align: center; }
-
-/* 底部大按钮：＋ 添加新回忆 */
-.add-btn {
-  margin-top: 24rpx; display: flex; align-items: center; justify-content: center; gap: 10rpx;
-  background: linear-gradient(135deg, #4ADE80, #22C55E); color: #ffffff;
-  font-size: 30rpx; font-weight: 700; border-radius: 32rpx; padding: 26rpx 0;
-  box-shadow: 0 10rpx 28rpx rgba(34, 197, 94, 0.32);
-}
-.add-ico { width: 32rpx; height: 32rpx; }
-.add-hover { opacity: 0.88; }
 
 /* 加入协作弹层 */
 .join-mask {
@@ -546,7 +566,7 @@ function goHome() {
 }
 .join-pop { width: 600rpx; background: #fff; border-radius: 24rpx; padding: 40rpx 36rpx; }
 .join-pop-title { font-size: 32rpx; font-weight: 700; color: #333; text-align: center; }
-.join-pop-sub { font-size: 24rpx; color: #868E96; margin-top: 12rpx; line-height: 1.5; text-align: center; }
+.join-pop-sub { font-size: 24rpx; color: #868E96; margin-top: 12rpx; line-height: 1.5; text-align: center; white-space: nowrap; }
 .join-input {
   margin-top: 28rpx; height: 88rpx; background: #F5F7F7; border-radius: 12rpx;
   padding: 0 24rpx; font-size: 28rpx; color: #333; letter-spacing: 1rpx;

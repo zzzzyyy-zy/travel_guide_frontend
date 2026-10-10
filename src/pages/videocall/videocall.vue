@@ -43,7 +43,7 @@
         </view>
         <view class="msg-time" v-if="m.t">{{ m.t }}</view>
       </view>
-      <view class="talk-empty" v-if="!msgs.length">直接说话就行（不用按住），小沃会一边看画面一边聊；想打字请用讲解页的「文字聊天」</view>
+      <view class="talk-empty" v-if="!msgs.length">{{ talkEmptyHint }}</view>
       <view class="talk-end" id="talkEnd"></view>
     </scroll-view>
 
@@ -190,11 +190,16 @@ const callTimeText = computed(() => {
   const s = callSeconds.value
   return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0')
 })
+// 空态引导：按画面开关切换说法（纯语音模式别再叫用户「对准镜头」）
+const talkEmptyHint = computed(() => videoOff.value
+  ? '直接说话就行（不用按住）；点左下「开画面」，小沃就能看到你眼前的东西'
+  : '直接说话就行（不用按住），小沃会一边看画面一边聊；想打字请用讲解页的「文字聊天」')
 
 let timerId = null
 let speaking = false      // 音频闸门（普通变量，帧热路径读）；UI 用 speakingOn，唯一写入口 setSpeaking()
 let callAudio = null
 let currentTripId = ''
+let voiceOnly = false     // 入口带 voice=1（讲解页「语音通话」）→ 以「只留语音」进入，不显示取景框
 
 // 用户在问「眼前这是什么」吗？（打字和语音识别共用同一套判据，宽松匹配即可）
 function looksLikeAsk(text) {
@@ -228,7 +233,7 @@ function askNarrate() {
   else callNote.value = ''
 }
 
-// ---------- 发起通话（tripId 由 query 带入，必传） ----------
+// ---------- 发起通话（tripId 由 query 带入，必传；voice=1 = 只留语音进入） ----------
 useLoad(q => {
   const tid = String((q && q.tripId) || '')
   if (!tid) {
@@ -237,6 +242,7 @@ useLoad(q => {
     return
   }
   tripLabel.value = (q && q.label) ? decodeURIComponent(q.label) : ''
+  voiceOnly = String((q && q.voice) || '') === '1'
   beginCall(tid)
 })
 
@@ -246,7 +252,8 @@ function beginCall(tripId) {
   callStatus.value = 'connecting'
   callSeconds.value = 0
   muted.value = false
-  videoOff.value = false
+  // 画面开关：voice=1（讲解页「语音通话」入口）→ 默认只留语音；点左下「开画面」随时开摄像头
+  videoOff.value = voiceOnly
   msgs.value = []
   curUserIdx = -1
   curUserDone = true

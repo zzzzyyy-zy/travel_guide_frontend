@@ -11,3 +11,10 @@ package-lock.json
 # 本地构建产物校验脚本（一次性工具，不入库）
 check_*.cjs
 gen-*.cjs
+check_*.py
+gen-*.py
+# 一次性素材抓取 / 预览的临时目录与产物
+.tmp-*
+
+# 一次性预览图
+preview-*
